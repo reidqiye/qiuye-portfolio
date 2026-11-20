@@ -267,8 +267,12 @@
     g.style.cssText = 'left:' + (L * 100) + '%;top:' + (GT * 100) + '%;width:' + (Wd * 100) + '%;height:' + (Hd * 100) + '%';
     g.innerHTML = '<div class="glass-in"><div class="refr"><div class="clone"></div></div><div class="tint"></div><div class="bubbles"></div></div>' +
       '<svg class="glass-line" viewBox="0 0 1000 1000" preserveAspectRatio="none"><path class="hl1"/><path class="hl2"/></svg>';
-    var c = g.querySelector('.clone');
-    c.innerHTML = $('scene').innerHTML;
+    var c = g.querySelector('.clone'), barEl = $('barLayer');
+    // only what sits behind the liquid gets refracted
+    Array.prototype.some.call($('scene').children, function (el) {
+      if (el === barEl) return true;
+      c.appendChild(el.cloneNode(true)); return false;
+    });
     c.querySelectorAll('[id]').forEach(function (e) { e.removeAttribute('id'); });
     c.style.cssText = 'left:' + (-L / Wd * 100) + '%;top:' + (-GT / Hd * 100) + '%;width:' + (100 / Wd) + '%;height:' + (100 / Hd) + '%';
     g.querySelector('.tint').style.background = LIQ[i];
@@ -278,7 +282,7 @@
       b.style.cssText = 'left:' + (8 + Math.random() * 84) + '%;width:' + sz + 'px;height:' + sz + 'px;animation-delay:' + (-Math.random() * 2.4).toFixed(2) + 's;animation-duration:' + (1.8 + Math.random() * 1.4).toFixed(2) + 's';
       bb.appendChild(b);
     }
-    document.querySelector('.scene-ui').appendChild(g);
+    $('scene').insertBefore(g, $('barLayer'));   // in front of the lamps, behind the bar
     return g;
   }
   var ys = (GSP - GT) / (GS - GT);         // where the arch meets the straight sides, inside the glass box
