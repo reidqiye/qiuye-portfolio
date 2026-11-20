@@ -30,6 +30,8 @@ img { display: block; }
   /* soften the scene's outer edges into your drawn wall and floor */
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 1.4%, #000 98.6%, transparent 100%), linear-gradient(to bottom, #000 95.5%, transparent 100%);
   -webkit-mask-composite: source-in; mask-image: linear-gradient(to right, transparent 0, #000 1.4%, #000 98.6%, transparent 100%), linear-gradient(to bottom, #000 95.5%, transparent 100%); mask-composite: intersect; }
+.scene-ui { -webkit-mask-image: none; mask-image: none; }
+.floor-front { position: absolute; left: 50%; top: 91.1984%; width: calc(var(--sw) * 7363 / 4087); height: 8.8016%; transform: translateX(-50%); background: url(assets/floor_front.webp) center top / 100% 100% no-repeat; pointer-events: none; }
 .layer { position: absolute; }
 .fade { transition: opacity 500ms ease; }
 .vine { transform-origin: 50% 0; animation: sway 4.6s ease-in-out infinite; --amp: 2.6; }
