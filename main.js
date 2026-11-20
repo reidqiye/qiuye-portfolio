@@ -69,9 +69,17 @@
   fx.innerHTML = '<defs><filter id="goo" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">' +
     '<feGaussianBlur in="SourceGraphic" stdDeviation="6"/>' +
     '<feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -10"/></filter></defs>' +
-    '<g filter="url(#goo)"><g id="fxWorld"><path id="fxBody"/><path id="fxRope" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g></g>';
+    '<g filter="url(#goo)"><g id="fxWorld"><path id="fxBody"/><path id="fxRope" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path id="fxCurtain"/><g id="fxDrips"></g></g></g><g id="fxShine"></g>';
   document.body.appendChild(fx);
-  var world = fx.querySelector('#fxWorld'), body = fx.querySelector('#fxBody'), rope = fx.querySelector('#fxRope'), gooF = fx.querySelector('#goo'), gooBlur = fx.querySelector('feGaussianBlur');
+  var wf = document.createElementNS(NS, 'svg');
+  wf.setAttribute('width', 0); wf.setAttribute('height', 0); wf.setAttribute('aria-hidden', 'true');
+  wf.style.position = 'absolute';
+  wf.innerHTML = '<filter id="water" x="-5%" y="-5%" width="110%" height="110%">' +
+    '<feTurbulence id="wturb" type="fractalNoise" baseFrequency="0.009 0.024" numOctaves="2" seed="4"/>' +
+    '<feDisplacementMap id="wdisp" in="SourceGraphic" scale="14" xChannelSelector="R" yChannelSelector="G"/></filter>';
+  document.body.appendChild(wf);
+  var wturb = wf.querySelector('#wturb'), wdisp = wf.querySelector('#wdisp');
+  var world = fx.querySelector('#fxWorld'), body = fx.querySelector('#fxBody'), rope = fx.querySelector('#fxRope'), curtain = fx.querySelector('#fxCurtain'), dripsG = fx.querySelector('#fxDrips'), shineG = fx.querySelector('#fxShine'), gooF = fx.querySelector('#goo'), gooBlur = fx.querySelector('feGaussianBlur');
   var parts = [], spare = [], R = 10, running = false, last = 0;
   var P = null;      // the current pour
   var H = null;      // the hover drip
@@ -87,6 +95,8 @@
   }
   sizeFx(); window.addEventListener('resize', sizeFx);
 
+  // the inside of each arch, as fractions of the scene: half width, arch top, where the straight sides start, the sill
+  var GW = 0.1058, GT = 0.1549, GSP = 0.3333, GS = 0.668;
   function geo(i) {      // where window i's sill is, in page coordinates
     var r = $('scene').getBoundingClientRect(), sw = r.width;
     return { cx: r.left + CXF[i] * sw, sill: r.top + scrollY + r.height * 0.6603, half: sw * 0.05, sw: sw };
@@ -107,10 +117,10 @@
   function clamp01(t) { return Math.max(0, Math.min(1, t)); }
 
   function surfaceY(x, t) {    // the wavy top of the rising drink
-    if (!P || P.level === null) return Infinity;
+    if (!P || P.level == null) return Infinity;
     var A = P.amp;
     var y = P.level + A * (0.6 * Math.sin(x * 0.011 + t * 0.0042) + 0.4 * Math.sin(x * 0.026 - t * 0.0067));
-    var dx = (x - P.hitX) / (R * 7);
+    var dx = (x - P.hitX) / (P.glassHalf ? P.glassHalf * 1.4 : R * 7);
     y -= P.crown * Math.exp(-dx * dx);          // the stream pushes up a little crown where it lands
     return Math.max(P.poolTop, y);
   }
@@ -123,89 +133,73 @@
     // --- the pour timeline ---
     if (P) {
       var t = now - P.t0, G = P.g;
-      // 1. gather: a film spreads along the sill, four drops swell under it, then slide together into one
-      var grow = ease(t / 550), drain = clamp01((t - 1700) / 800), join = ease((t - 450) / 450);
-      P.film.forEach(function (d) {
-        d.x = lerp(d.hx, G.cx, Math.max(join * 0.35, drain)); d.y = G.sill - R * 0.15;
-        d.r = R * 0.95 * grow * (1 - drain);
-      });
-      if (!P.released) {
-        P.hang.forEach(function (d, n) {
-          var e = ease((t - n * 70) / 550);
-          d.x = lerp(d.hx, G.cx, join);
-          d.y = G.sill + R * (0.5 + 1.4 * e + 0.9 * join) + Math.sin(t * 0.014 + n * 1.7) * R * 0.18 * e;
-          d.r = R * (0.2 + 0.9 * e + 0.5 * join);
+      // 1. the window fills up like a glass
+      var fill = ease(t / 1300);
+      P.lv = lerp(1.02, 0.03, fill);
+      var gb = P.glassBox, waveA = (R * 0.7) / gb.height;
+      drawGlass(P, t, waveA * (1 - 0.5 * clamp01((t - 1300) / 600)));
+      // 2. it spills over the sill as a curtain as wide as the window, with sticky drips along its edge
+      var surf = (P.level == null) ? Infinity : P.level;
+      if (t > 1150) {
+        var tc = t - 1150, kf = clamp01((tc - 650) / 1350);
+        var D = P.poolTop + innerHeight * 1.2 - G.sill;
+        var yb = Math.min(G.sill + R + R * 4 * ease(tc / 700) + D * kf * kf, surf + R * 2);   // creeps down the bar front, then lets go
+        var hw0 = P.glassHalf * 0.98;
+        var lip = R * 1.1 * Math.min(1, tc / 250);
+        var pts = [], M = 30;
+        for (var q = 0; q <= M; q++) {
+          var u = q / M, y = lerp(G.sill - lip, yb, u);
+          pts.push((G.cx + hw0 + Math.sin(y * 0.02 + t * 0.006) * R * 0.35 + Math.pow(u, 3) * R * 1.5).toFixed(1) + ' ' + y.toFixed(1));
+        }
+        for (q = M; q >= 0; q--) {
+          var u2 = q / M, y2 = lerp(G.sill - lip, yb, u2);
+          pts.push((G.cx - hw0 - Math.sin(y2 * 0.018 + t * 0.005 + 1) * R * 0.35 - Math.pow(u2, 3) * R * 1.5).toFixed(1) + ' ' + y2.toFixed(1));
+        }
+        curtain.setAttribute('d', 'M' + pts.join(' L') + 'Z');
+        curtain.setAttribute('fill', P.color);
+        P.drips.forEach(function (dp) {
+          var x = G.cx + dp.u * hw0 + Math.sin(t * 0.004 + dp.ph) * R * 0.2;
+          var grow = ease((tc - dp.delay) / 900), len = dp.len * R * grow * (1 + 0.15 * Math.sin(t * 0.007 + dp.ph));
+          var y1 = yb - R, y2b = Math.min(yb + len, surf + R);
+          dp.el.setAttribute('x1', x.toFixed(1)); dp.el.setAttribute('x2', x.toFixed(1));
+          dp.el.setAttribute('y1', y1.toFixed(1)); dp.el.setAttribute('y2', Math.max(y1, y2b).toFixed(1));
+          dp.el.setAttribute('stroke-width', (dp.w * R).toFixed(1)); dp.el.setAttribute('stroke', P.color);
+          dp.tip.setAttribute('cx', x.toFixed(1)); dp.tip.setAttribute('cy', Math.max(y1, y2b).toFixed(1));
+          dp.tip.setAttribute('r', (dp.w * R * 0.68 * (0.6 + 0.4 * grow)).toFixed(1)); dp.tip.setAttribute('fill', P.color);
         });
-        if (t > 950) {           // 2. the big drop lets go and pulls a stream behind it
-          P.released = true; P.tRel = t;
-          P.hang.forEach(function (d, n) { if (n) drop(d); });
-          P.tip = P.hang[0]; P.tip.x = G.cx; P.tip.kind = 'tip'; P.tip.r = R * 1.5;
-        }
+        shineG.setAttribute('transform', 'translate(0 ' + (-scrollY) + ')');
+        P.shine.forEach(function (sh) {
+          var x = G.cx + sh.u * hw0 + Math.sin(t * 0.005 + sh.ph) * R * 0.3;
+          var ya = G.sill + R * 1.5, yz = Math.min(yb - R * 2.5, surf - R);
+          sh.el.setAttribute('d', yz > ya ? 'M' + x.toFixed(1) + ' ' + ya.toFixed(1) + ' L' + (x + Math.sin(t * 0.004 + sh.ph) * R * 0.4).toFixed(1) + ' ' + yz.toFixed(1) : '');
+        });
       }
-      if (P.released) {
-        var tr = (t - P.tRel) / 1000, g2 = g * 0.9;
-        var sway = function (y) { var k = clamp01((y - G.sill) / (R * 25)); return G.cx + Math.sin(t * 0.005 - (y - G.sill) * 0.0045) * R * 1.4 * k; };
-        var tipY = G.sill + R * 3 + 0.5 * g2 * tr * tr;
-        var surf = surfaceY(G.cx, now);
-        if (P.tip) {
-          P.tip.y = Math.min(tipY, surf); P.tip.x = sway(P.tip.y);
-          if (tipY >= surf) { drop(P.tip); P.tip = null; P.landed = true; }
-        }
-        var topY = G.sill + R * 0.3;
-        if (t > 2350) { var td = (t - 2350) / 1000; topY += 0.5 * g2 * td * td; }      // the stream lets go of the sill
-        var botY = Math.min(tipY, surf + R);
-        P.streamX = sway(Math.min(botY, surf));
-        if (botY > topY + 2) {
-          var pts = [], N = 28;
-          for (var q2 = 0; q2 <= N; q2++) { var yy = lerp(topY, botY, q2 / N); pts.push(sway(yy).toFixed(1) + ' ' + yy.toFixed(1)); }
-          rope.setAttribute('d', 'M' + pts.join(' L'));
-          var thin = t > 2350 ? Math.max(0.35, 1 - (t - 2350) / 500) : 1;
-          rope.setAttribute('stroke-width', (R * 1.35 * thin).toFixed(1));
-          rope.setAttribute('stroke', P.color);
-        } else rope.setAttribute('d', '');
-        // a few stray droplets peel off the stream; splashes where it lands
-        if (t < 2450) {
-          P.acc += dt * 14;
-          while (P.acc >= 1) {
-            P.acc -= 1;
-            var yy2 = lerp(topY + R * 10, botY, Math.random());
-            dot(sway(yy2) + (Math.random() - .5) * R * 1.2, yy2, R * (0.45 + Math.random() * 0.3), 'fall', (Math.random() - .5) * R * 6, R * 20);
-          }
-        }
-        if (P.landed && t < 2550) {
-          P.sacc = (P.sacc || 0) + dt * 22;
-          while (P.sacc >= 1) {
-            P.sacc -= 1;
-            dot(P.streamX + (Math.random() - .5) * R, surf - R * 0.6, R * (0.5 + Math.random() * 0.35), 'splash',
-                (Math.random() - .5) * R * 50, -R * (20 + Math.random() * 30));
-          }
-        }
-      }
-      // 3. scroll down to the pool, then fill it
-      if (t > 1000 && !P.scrolled) {
-        var st = ease((t - 1000) / 1150);
-        scrollTo(0, lerp(P.y0, P.poolTop, st));
-        if (st >= 1) P.scrolled = true;
-      }
-      if (t > 1250) {
-        var bottom = P.poolTop + innerHeight + R * 6;
-        var f = ease((t - 1250) / 1500);
-        P.level = lerp(bottom, P.poolTop - R * 2, f);
-        P.amp = R * (t < 2400 ? 1.1 : 1.1 * Math.exp(-(t - 2400) / 450));
-        P.crown = R * (t < 2400 ? 1.8 : Math.max(0, 1.8 - (t - 2400) / 200));
-        P.hitX = P.streamX;
-        var bp = [], x0 = -40, x1 = innerWidth + 40, step = 18;
-        for (var x = x0; x <= x1; x += step) bp.push(x.toFixed(1) + ' ' + surfaceY(x, now).toFixed(1));
+      // the drink rises underneath and swallows the curtain
+      if (t > 2100) {
+        var f = ease((t - 2100) / 1150);
+        P.level = lerp(P.poolTop + innerHeight + R * 6, P.poolTop - R * 2, f);
+        P.amp = R * (t < 3000 ? 1.0 : Math.exp(-(t - 3000) / 400));
+        P.crown = R * 1.6 * (1 - clamp01((t - 2900) / 300));
+        P.hitX = G.cx;
+        var bp = [], x0 = -40, x1 = innerWidth + 40;
+        for (var xx = x0; xx <= x1; xx += 18) bp.push(xx.toFixed(1) + ' ' + surfaceY(xx, now).toFixed(1));
         var deep = P.poolTop + innerHeight * 3;
         body.setAttribute('d', 'M' + bp.join(' L') + ' L' + x1 + ' ' + deep + ' L' + x0 + ' ' + deep + 'Z');
         body.setAttribute('fill', P.color);
       }
-      if (t > 2800 && !P.handed) {         // hand over to the real pool (with grain) underneath
+      // 3. scroll down with it
+      if (t > 1800 && !P.scrolled) {
+        var st = ease((t - 1800) / 1250);
+        scrollTo(0, lerp(P.y0, P.poolTop, st));
+        if (st >= 1) P.scrolled = true;
+      }
+      if (t > 3250 && !P.handed) {         // the curtain now covers the screen: hand over to the real pool (with grain)
         P.handed = true;
         setPool({ dur: 0, top: 0 }); showContent(true);
       }
-      if (t > 3000) { body.setAttribute('d', ''); rope.setAttribute('d', ''); }
-      if (t > 3400) { P.film.forEach(drop); P = null; busy = false; light(null); }
+      if (t > 3400) { curtain.setAttribute('d', ''); body.setAttribute('d', ''); dripsG.innerHTML = ''; shineG.innerHTML = ''; P.drips = []; P.shine = []; }
+      if (t > 3400 && P.glass) { P.glass.remove(); P.glass = null; }
+      if (t > 3600) { P.film.forEach(drop); P = null; busy = false; light(null); }
     }
 
     // --- hover: one drop swells under the sill and falls ---
@@ -265,6 +259,48 @@
     run();
   }
 
+  // ---------- The window as a glass ----------
+  function makeGlass(i) {
+    var L = CXF[i] - GW, Wd = 2 * GW, Hd = GS - GT;
+    var g = document.createElement('div');
+    g.className = 'glass';
+    g.style.cssText = 'left:' + (L * 100) + '%;top:' + (GT * 100) + '%;width:' + (Wd * 100) + '%;height:' + (Hd * 100) + '%';
+    g.innerHTML = '<div class="glass-in"><div class="refr"><div class="clone"></div></div><div class="tint"></div><div class="bubbles"></div></div>' +
+      '<svg class="glass-line" viewBox="0 0 1000 1000" preserveAspectRatio="none"><path class="hl1"/><path class="hl2"/></svg>';
+    var c = g.querySelector('.clone');
+    c.innerHTML = $('scene').innerHTML;
+    c.querySelectorAll('[id]').forEach(function (e) { e.removeAttribute('id'); });
+    c.style.cssText = 'left:' + (-L / Wd * 100) + '%;top:' + (-GT / Hd * 100) + '%;width:' + (100 / Wd) + '%;height:' + (100 / Hd) + '%';
+    g.querySelector('.tint').style.background = LIQ[i];
+    var bb = g.querySelector('.bubbles');
+    for (var n = 0; n < 10; n++) {
+      var b = document.createElement('i'), sz = 4 + Math.random() * 7;
+      b.style.cssText = 'left:' + (8 + Math.random() * 84) + '%;width:' + sz + 'px;height:' + sz + 'px;animation-delay:' + (-Math.random() * 2.4).toFixed(2) + 's;animation-duration:' + (1.8 + Math.random() * 1.4).toFixed(2) + 's';
+      bb.appendChild(b);
+    }
+    document.querySelector('.scene-ui').appendChild(g);
+    return g;
+  }
+  var ys = (GSP - GT) / (GS - GT);         // where the arch meets the straight sides, inside the glass box
+  function halfAt(y) { return y >= ys ? 0.5 : 0.5 * Math.sqrt(Math.max(0, 1 - Math.pow((ys - y) / ys, 2))); }
+  function drawGlass(P, t, A) {
+    if (!P.glass) return;
+    var lv = P.lv, inn = P.glass.querySelector('.glass-in');
+    var wave = function (x) { return lv + A * (0.6 * Math.sin(x * 9 + t * 0.005) + 0.4 * Math.sin(x * 21 - t * 0.008)); };
+    var top = [], hw = halfAt(Math.max(0, lv)), N = 24;
+    for (var n = 0; n <= N; n++) { var x = 0.5 - hw + 2 * hw * n / N; top.push([x, Math.max(0, wave(x))]); }
+    var poly = top.map(function (p) { return (p[0] * 100).toFixed(2) + '% ' + (p[1] * 100).toFixed(2) + '%'; });
+    for (var y = Math.ceil(lv * 20) / 20; y <= 1.0001; y += 0.05) poly.push(((0.5 + halfAt(y)) * 100).toFixed(2) + '% ' + (Math.min(1, y) * 100).toFixed(2) + '%');
+    poly.push('100% 100%', '0% 100%');
+    for (y = 1; y >= lv; y -= 0.05) poly.push(((0.5 - halfAt(y)) * 100).toFixed(2) + '% ' + (y * 100).toFixed(2) + '%');
+    inn.style.clipPath = 'polygon(' + poly.join(',') + ')';
+    var hl = top.slice(3, -3).map(function (p) { return (p[0] * 1000).toFixed(1) + ' ' + ((p[1] + 0.012) * 1000).toFixed(1); });
+    P.glass.querySelector('.hl1').setAttribute('d', hl.length ? 'M' + hl.join(' L') : '');
+    var hl2 = top.slice(6, 11).map(function (p) { return (p[0] * 1000).toFixed(1) + ' ' + ((p[1] + 0.05) * 1000).toFixed(1); });
+    P.glass.querySelector('.hl2').setAttribute('d', hl2.length ? 'M' + hl2.join(' L') : '');
+    wturb.setAttribute('baseFrequency', '0.009 ' + (0.024 + 0.004 * Math.sin(t * 0.004)).toFixed(4));
+  }
+
   // ---------- The pour ----------
   function pour(i) {
     if (busy) return;
@@ -281,9 +317,27 @@
     var G = geo(i);
     P = { t0: performance.now(), g: G, color: LIQ[i], y0: scrollY,
           poolTop: pool.getBoundingClientRect().top + scrollY,
-          film: [], hang: [], released: false, acc: 0, level: null, amp: 0, crown: 0, hitX: G.cx, streamX: G.cx };
-    for (var n = 0; n < 7; n++) { var hx = G.cx + (n / 6 - .5) * 2 * G.half * 0.9; var fd = dot(hx, G.sill, 0, 'fixed'); fd.hx = hx; P.film.push(fd); }
-    DX.forEach(function (dx) { var hd = dot(G.cx + dx / 4320 * G.sw, G.sill, 0, 'fixed'); hd.hx = hd.x; P.hang.push(hd); });
+          film: [], drips: [], lv: 1.02 };
+    P.glass = makeGlass(i);
+    P.glassBox = P.glass.getBoundingClientRect();
+    P.glassHalf = P.glassBox.width / 2;
+    wdisp.setAttribute('scale', (R * 1.3).toFixed(1));
+    dripsG.innerHTML = '';
+    for (var n = 0; n < 9; n++) {
+      var el = document.createElementNS(NS, 'line'), tip = document.createElementNS(NS, 'circle');
+      el.setAttribute('stroke-linecap', 'round');
+      dripsG.appendChild(el); dripsG.appendChild(tip);
+      var big = n % 2 === 0;
+      P.drips.push({ el: el, tip: tip, u: -0.9 + 1.8 * (n + 0.2 + Math.random() * 0.6) / 9, len: big ? 8 + Math.random() * 12 : 2 + Math.random() * 4,
+                     w: big ? 1.3 + Math.random() * 0.8 : 0.9 + Math.random() * 0.7, delay: Math.random() * 600, ph: Math.random() * 6 });
+    }
+    shineG.innerHTML = ''; P.shine = [];
+    [-0.62, -0.18, 0.4, 0.7].forEach(function (u, n) {
+      var el = document.createElementNS(NS, 'path');
+      el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#FBF4E6'); el.setAttribute('stroke-linecap', 'round');
+      el.setAttribute('stroke-opacity', n % 2 ? .22 : .35); el.setAttribute('stroke-width', (R * (n % 2 ? 0.25 : 0.4)).toFixed(1));
+      shineG.appendChild(el); P.shine.push({ el: el, u: u, ph: n * 1.9 });
+    });
     setTimeout(function () { setDrink(i); setPool({ dur: 0, top: 100 }); }, 700);
     run();
   }
