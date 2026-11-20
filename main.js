@@ -254,6 +254,10 @@
   }
   function run() { if (!running) { running = true; fx.classList.add('on'); last = performance.now(); requestAnimationFrame(frame); } }
 
+  // a small floating "click" under the sill of the window you're pointing at
+  function showHint(i) {
+    document.querySelectorAll('.hint').forEach(function (h, n) { h.classList.toggle('on', n === i); });
+  }
   function hoverDrip(i) {
     if (calm) return;
     if (H) { H.anchor && drop(H.anchor); H.bead && drop(H.bead); H = null; }
@@ -312,7 +316,7 @@
   function pour(i) {
     if (busy) return;
     busy = true;
-    hoverDrip(null);
+    showHint(null);
     light(i);
     showContent(false);
     if (calm) {
@@ -383,7 +387,7 @@
   document.querySelectorAll('[data-go]').forEach(function (b) { b.addEventListener('click', function () { pour(+b.dataset.go); }); });
   document.querySelectorAll('[data-en]').forEach(function (b) {
     var i = +b.dataset.en;
-    var on = function () { if (!busy) { light(i); hoverDrip(i); } }, off = function () { if (!busy) { light(null); hoverDrip(null); } };
+    var on = function () { if (!busy) { light(i); showHint(i); } }, off = function () { if (!busy) { light(null); showHint(null); } };
     b.addEventListener('mouseenter', on); b.addEventListener('focus', on);
     b.addEventListener('mouseleave', off); b.addEventListener('blur', off);
   });
