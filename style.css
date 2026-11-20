@@ -28,7 +28,7 @@ img { display: block; }
   --ah: clamp(calc(var(--sw) * .1), calc(100vh - var(--sw) * 1848 / 4087), calc(var(--sw) * 1097 / 4087));
   --cut: calc(var(--sw) * 1097 / 4087 - var(--ah)); }
 .stage-wrap { position: relative; overflow: hidden; background: #E8E6DB; height: calc(var(--sw) * 2945 / 4087 - var(--cut)); } /* ends at the bottom of the cream step */
-.stage { position: absolute; top: calc(-1 * var(--cut)); left: 50%; width: calc(var(--sw) * 7363 / 4087); height: calc(var(--sw) * 3079 / 4087); transform: translateX(-50%); background: url(assets/stage_bg.webp?v=24) center top / 100% 100% no-repeat; }
+.stage { position: absolute; top: calc(-1 * var(--cut)); left: 50%; width: calc(var(--sw) * 7363 / 4087); height: calc(var(--sw) * 3079 / 4087); transform: translateX(-50%); background: url(assets/stage_bg.webp?v=25) center top / 100% 100% no-repeat; }
 .scene { position: absolute; left: 50%; top: var(--ah); width: var(--sw); aspect-ratio: 4320 / 2040; transform: translateX(-50%); 
   /* soften the scene's outer edges into your drawn wall and floor */
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 1.4%, #000 98.6%, transparent 100%), linear-gradient(to bottom, #000 95.5%, transparent 100%);
