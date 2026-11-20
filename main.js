@@ -37,6 +37,7 @@
       $('halo' + n).style.opacity = on ? LIGHT * 0.9 : 0;
       $('lab' + n).style.color = on ? '#A44A26' : '#272523';
     }
+    document.querySelectorAll('.vine').forEach(function (v) { v.style.setProperty('--amp', +v.dataset.win === i ? 4.8 : 2.6); });
     $('stars').style.opacity = i === 1 ? 1 : 0;
     $('shaker').style.animation = i === 1 ? 'shake 0.42s ease-in-out infinite' : 'none';
   }

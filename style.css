@@ -29,7 +29,7 @@ img { display: block; }
 .scene { position: relative; width: 100%; max-width: 1440px; margin: 0 auto; aspect-ratio: 4320 / 2700; overflow: hidden; }
 .layer { position: absolute; }
 .fade { transition: opacity 500ms ease; }
-.vine { transform-origin: 50% 0; animation: sway 7s ease-in-out infinite; }
+.vine { transform-origin: 50% 0; animation: sway 4.6s ease-in-out infinite; --amp: 2.6; }
 .shaker { transform-origin: 50% 60%; }
 .stars { transform-origin: 50% 50%; animation: twinkle 1.6s ease-in-out infinite; }
 .halo { position: absolute; width: 9%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, var(--beam) 0%, transparent 65%); mix-blend-mode: screen; pointer-events: none; transition: opacity 500ms ease; }
@@ -127,7 +127,7 @@ footer { display: flex; justify-content: space-between; align-items: center; gap
 .pill:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
 
 /* ---------- Keyframes ---------- */
-@keyframes sway { 0%,100% { transform: rotate(-1.2deg); } 50% { transform: rotate(1.2deg); } }
+@keyframes sway { 0%,100% { transform: rotate(calc(var(--amp, 2.6) * -1deg)) skewX(calc(var(--amp, 2.6) * .7deg)); } 50% { transform: rotate(calc(var(--amp, 2.6) * 1deg)) skewX(calc(var(--amp, 2.6) * -.7deg)); } }
 @keyframes shake { 0%,100% { transform: rotate(-7deg) translateY(0); } 50% { transform: rotate(7deg) translateY(-3%); } }
 @keyframes twinkle { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04) rotate(1deg); } }
 @keyframes wave { from { transform: translateX(0); } to { transform: translateX(-50%); } }
