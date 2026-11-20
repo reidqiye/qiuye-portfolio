@@ -386,6 +386,18 @@
   });
   $('toTop').addEventListener('click', function () { root.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' }); });
 
+  // ---------- Scroll parallax ----------
+  var stageWrap = document.querySelector('.stage-wrap'), ticking = false;
+  function onScroll() {
+    if (ticking) return; ticking = true;
+    requestAnimationFrame(function () {
+      ticking = false;
+      var h = stageWrap.offsetHeight || 1;
+      document.documentElement.style.setProperty('--p', Math.max(0, Math.min(1, scrollY / h)).toFixed(4));
+    });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+
   // ---------- Initial state ----------
   light(null);
   setDrink(1);

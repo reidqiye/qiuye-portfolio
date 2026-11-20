@@ -25,10 +25,10 @@ img { display: block; }
    --sw is the width of the bar scene. It fills the screen width; the drawn side walls only show on screens wider than 1920px. */
 :root { --sw: min(1920px, 100vw);
   /* --ah: visible height of the cream title band. On short screens the plain top of the band is cut so more of the bar fits. */
-  --ah: clamp(calc(var(--sw) * .15), calc(100vh - var(--sw) * 1848 / 4087), calc(var(--sw) * 1097 / 4087));
+  --ah: clamp(calc(var(--sw) * .1), calc(100vh - var(--sw) * 1848 / 4087), calc(var(--sw) * 1097 / 4087));
   --cut: calc(var(--sw) * 1097 / 4087 - var(--ah)); }
 .stage-wrap { position: relative; overflow: hidden; background: #E8E6DB; height: calc(var(--sw) * 2945 / 4087 - var(--cut)); } /* ends at the bottom of the cream step */
-.stage { position: absolute; top: calc(-1 * var(--cut)); left: 50%; width: calc(var(--sw) * 7363 / 4087); height: calc(var(--sw) * 3079 / 4087); transform: translateX(-50%); background: url(assets/stage_bg.webp?v=11) center top / 100% 100% no-repeat; }
+.stage { position: absolute; top: calc(-1 * var(--cut)); left: 50%; width: calc(var(--sw) * 7363 / 4087); height: calc(var(--sw) * 3079 / 4087); transform: translateX(-50%); background: url(assets/stage_bg.webp?v=12) center top / 100% 100% no-repeat; }
 .scene { position: absolute; left: 50%; top: var(--ah); width: var(--sw); aspect-ratio: 4320 / 2040; transform: translateX(-50%); 
   /* soften the scene's outer edges into your drawn wall and floor */
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 1.4%, #000 98.6%, transparent 100%), linear-gradient(to bottom, #000 95.5%, transparent 100%);
@@ -56,8 +56,8 @@ img { display: block; }
 .burst { position: absolute; right: calc(var(--ah) * -.28); top: calc(var(--ah) * .11); width: calc(var(--ah) * .56); }
 .sparks { position: absolute; left: calc(var(--ah) * -.24); top: calc(var(--ah) * .082); width: calc(var(--ah) * .28); }
 .tagline { display: flex; align-items: center; gap: 16px; }
-.tagline .cn { font-size: max(13px, calc(var(--ah) * .047)); line-height: 1.5; letter-spacing: .12em; }
-.tagline .en { font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 600; font-size: max(16px, calc(var(--ah) * .071)); line-height: 1.3; color: var(--orange-dark); }
+.tagline .cn { font-size: max(14px, calc(var(--ah) * .06)); line-height: 1.5; letter-spacing: .12em; }
+.tagline .en { font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 600; font-size: max(20px, calc(var(--ah) * .1)); line-height: 1.3; color: var(--orange-dark); }
 
 /* windows + labels */
 .win { position: absolute; background: transparent; border: 0; padding: 0; margin: 0; cursor: pointer; border-radius: 50% 50% 0 0 / 29.6% 29.6% 0 0; }
@@ -160,3 +160,18 @@ footer { display: flex; justify-content: space-between; align-items: center; gap
 .glass-line .hl1 { stroke-width: 2.5px; opacity: .9; }
 .glass-line .hl2 { stroke-width: 1.5px; opacity: .55; stroke-dasharray: 10 8; }
 @keyframes rise { 0% { bottom: -4%; opacity: 0; } 15% { opacity: 1; } 100% { bottom: 104%; opacity: 0; } }
+
+/* the giant word that lives inside the bar, between the back wall and the bartender */
+.bigword { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.bigword text { font-family: 'Archivo', sans-serif; font-style: italic; font-weight: 900; font-size: 820px; letter-spacing: -.02em; }
+.bigword .bw-ink { fill: var(--ink); }
+.bigword .bw-shadow { fill: var(--orange); }
+/* scroll parallax: layers further back move slower (--p is 0 at the top, 1 when the bar has scrolled away) */
+:root { --p: 0; }
+.d1 { translate: 0 calc(var(--p) * var(--sw) * .4722 * .075); }
+.d2 { translate: 0 calc(var(--p) * var(--sw) * .4722 * .055); }
+.d3 { translate: 0 calc(var(--p) * var(--sw) * .4722 * .035); }
+.d4 { translate: 0 calc(var(--p) * var(--sw) * .4722 * .02); }
+.title-block { translate: 0 calc(var(--p) * var(--sw) * -.06); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@media (prefers-reduced-motion: reduce) { .d1, .d2, .d3, .d4, .title-block { translate: none; } }
