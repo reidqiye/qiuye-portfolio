@@ -141,48 +141,68 @@
       P.lv = lerp(1.02, 0.03, fill);
       var gb = P.glassBox, waveA = (R * 0.7) / gb.height;
       drawGlass(P, t, waveA * (1 - 0.5 * clamp01((t - 1300) / 600)));
-      // 2. the giant sign starts to melt: it sags, and sticky drips run down from every letter over the bar
-      if (t > 1100) {
-        var tm = t - 1100, M2 = P.melt;
-        var sag = R * 2.2 * ease(tm / 1400);
-        M2.out.style.transform = 'translateX(-50%) translateY(' + sag.toFixed(1) + 'px)';
-        M2.inn.style.transform = 'translateY(' + sag.toFixed(1) + 'px)';
-        M2.drips.forEach(function (dp) {
-          var k = clamp01((tm - dp.delay) / dp.dur), len = dp.max * k * k * (3 - 2 * k) * (0.35 + 0.65 * k);
-          var w = dp.w * (1 + 1.7 * clamp01((tm - 650) / 1000));
-          var x = dp.x + Math.sin(t * 0.003 + dp.ph) * R * 0.25 * k;
-          var y1 = M2.top + sag, y2 = y1 + R * 0.5 + len;
-          dp.el.setAttribute('x1', x.toFixed(1)); dp.el.setAttribute('x2', x.toFixed(1));
-          dp.el.setAttribute('y1', y1.toFixed(1)); dp.el.setAttribute('y2', y2.toFixed(1));
-          dp.el.setAttribute('stroke-width', w.toFixed(1));
-          dp.tip.setAttribute('cx', x.toFixed(1)); dp.tip.setAttribute('cy', y2.toFixed(1));
-          dp.tip.setAttribute('r', (w * 0.62 * (0.4 + 0.6 * clamp01(len / (w * 2)))).toFixed(1));
-        });
-        // the melted sheet follows behind the drips, so nothing of the bar shows through at the end
-        var ks = clamp01((tm - 750) / 1300), sheetY = M2.top + sag + M2.reach * ks * ks * (3 - 2 * ks) * 0.97;
-        if (ks > 0) {
-          var sp = [], xL = -40, xR = innerWidth + 40;
-          for (var sx = xL; sx <= xR; sx += 24) sp.push(sx + ' ' + (sheetY + Math.sin(sx * 0.013 + t * 0.004) * R * 1.2).toFixed(1));
-          body.setAttribute('d', 'M' + xL + ' ' + (M2.top + sag) + ' L' + xR + ' ' + (M2.top + sag) + ' L' + sp.reverse().join(' L') + 'Z');
-          body.setAttribute('fill', '#DA6F41');
+      // 2. it spills over the sill as a curtain as wide as the window, with sticky drips along its edge
+      var surf = (P.level == null) ? Infinity : P.level;
+      if (t > 1150) {
+        var tc = t - 1150, kf = clamp01((tc - 650) / 1350);
+        var D = P.poolTop + innerHeight * 1.2 - G.sill;
+        var yb = Math.min(G.sill + R + R * 4 * ease(tc / 700) + D * kf * kf, surf + R * 2);   // creeps down the bar front, then lets go
+        var hw0 = P.glassHalf * 0.98;
+        var lip = R * 1.1 * Math.min(1, tc / 250);
+        var pts = [], M = 30;
+        for (var q = 0; q <= M; q++) {
+          var u = q / M, y = lerp(G.sill - lip, yb, u);
+          pts.push((G.cx + hw0 + Math.sin(y * 0.02 + t * 0.006) * R * 0.35 + Math.pow(u, 3) * R * 1.5).toFixed(1) + ' ' + y.toFixed(1));
         }
+        for (q = M; q >= 0; q--) {
+          var u2 = q / M, y2 = lerp(G.sill - lip, yb, u2);
+          pts.push((G.cx - hw0 - Math.sin(y2 * 0.018 + t * 0.005 + 1) * R * 0.35 - Math.pow(u2, 3) * R * 1.5).toFixed(1) + ' ' + y2.toFixed(1));
+        }
+        curtain.setAttribute('d', 'M' + pts.join(' L') + 'Z');
+        curtain.setAttribute('fill', P.color);
+        P.drips.forEach(function (dp) {
+          var x = G.cx + dp.u * hw0 + Math.sin(t * 0.004 + dp.ph) * R * 0.2;
+          var grow = ease((tc - dp.delay) / 900), len = dp.len * R * grow * (1 + 0.15 * Math.sin(t * 0.007 + dp.ph));
+          var y1 = yb - R, y2b = Math.min(yb + len, surf + R);
+          dp.el.setAttribute('x1', x.toFixed(1)); dp.el.setAttribute('x2', x.toFixed(1));
+          dp.el.setAttribute('y1', y1.toFixed(1)); dp.el.setAttribute('y2', Math.max(y1, y2b).toFixed(1));
+          dp.el.setAttribute('stroke-width', (dp.w * R).toFixed(1)); dp.el.setAttribute('stroke', P.color);
+          dp.tip.setAttribute('cx', x.toFixed(1)); dp.tip.setAttribute('cy', Math.max(y1, y2b).toFixed(1));
+          dp.tip.setAttribute('r', (dp.w * R * 0.68 * (0.6 + 0.4 * grow)).toFixed(1)); dp.tip.setAttribute('fill', P.color);
+        });
+        shineG.setAttribute('transform', 'translate(0 ' + (-scrollY) + ')');
+        P.shine.forEach(function (sh) {
+          var x = G.cx + sh.u * hw0 + Math.sin(t * 0.005 + sh.ph) * R * 0.3;
+          var ya = G.sill + R * 1.5, yz = Math.min(yb - R * 2.5, surf - R);
+          sh.el.setAttribute('d', yz > ya ? 'M' + x.toFixed(1) + ' ' + ya.toFixed(1) + ' L' + (x + Math.sin(t * 0.004 + sh.ph) * R * 0.4).toFixed(1) + ' ' + yz.toFixed(1) : '');
+        });
       }
-      // 3. follow the melt down the page
-      if (t > 1900 && !P.scrolled) {
-        var st = ease((t - 1900) / 1150);
+      // the drink rises underneath and swallows the curtain
+      if (t > 2100) {
+        var f = ease((t - 2100) / 1150);
+        P.level = lerp(P.poolTop + innerHeight + R * 6, P.poolTop - R * 2, f);
+        P.amp = R * (t < 3000 ? 1.0 : Math.exp(-(t - 3000) / 400));
+        P.crown = R * 1.6 * (1 - clamp01((t - 2900) / 300));
+        P.hitX = G.cx;
+        var bp = [], x0 = -40, x1 = innerWidth + 40;
+        for (var xx = x0; xx <= x1; xx += 18) bp.push(xx.toFixed(1) + ' ' + surfaceY(xx, now).toFixed(1));
+        var deep = P.poolTop + innerHeight * 3;
+        body.setAttribute('d', 'M' + bp.join(' L') + ' L' + x1 + ' ' + deep + ' L' + x0 + ' ' + deep + 'Z');
+        body.setAttribute('fill', P.color);
+      }
+      // 3. scroll down with it
+      if (t > 1800 && !P.scrolled) {
+        var st = ease((t - 1800) / 1250);
         scrollTo(0, lerp(P.y0, P.poolTop, st));
         if (st >= 1) P.scrolled = true;
       }
-      if (t > 3150 && !P.handed) {         // the melt now covers the screen: hand over to the drink below
+      if (t > 3250 && !P.handed) {         // the curtain now covers the screen: hand over to the real pool (with grain)
         P.handed = true;
         setPool({ dur: 0, top: 0 }); showContent(true);
       }
-      if (t > 3350 && P.melt.drips.length) {
-        dripsG.innerHTML = ''; body.setAttribute('d', ''); P.melt.drips = [];
-        P.melt.out.style.transform = ''; P.melt.inn.style.transform = '';
-      }
-      if (t > 3350 && P.glass) { P.glass.remove(); P.glass = null; }
-      if (t > 3500) { P.film.forEach(drop); P = null; busy = false; light(null); }
+      if (t > 3400) { curtain.setAttribute('d', ''); body.setAttribute('d', ''); dripsG.innerHTML = ''; shineG.innerHTML = ''; P.drips = []; P.shine = []; }
+      if (t > 3400 && P.glass) { P.glass.remove(); P.glass = null; }
+      if (t > 3600) { P.film.forEach(drop); P = null; busy = false; light(null); }
     }
 
     // --- hover: one drop swells under the sill and falls ---
@@ -288,30 +308,6 @@
     wturb.setAttribute('baseFrequency', '0.009 ' + (0.024 + 0.004 * Math.sin(t * 0.004)).toFixed(4));
   }
 
-  // ---------- The melting sign ----------
-  // three drips under every letter of the giant word, starting where the letters meet the eaves
-  function buildMelt() {
-    var out = document.querySelector('.bw-out'), inn = document.querySelector('.bw-in'), txt = out.querySelector('text');
-    var or = out.getBoundingClientRect(), sr = $('scene').getBoundingClientRect();
-    var top = sr.top + scrollY - R * 0.6;
-    var reach = pool.getBoundingClientRect().top + scrollY + innerHeight * 1.15 - top;
-    var drips = [], n = txt.getNumberOfChars();
-    for (var c = 0; c < n; c++) {
-      var e = txt.getExtentOfChar(c);
-      [0.2, 0.52, 0.82].forEach(function (u, j) {
-        var el = document.createElementNS(NS, 'line'), tip = document.createElementNS(NS, 'circle');
-        el.setAttribute('stroke-linecap', 'round'); el.setAttribute('stroke', '#DA6F41'); tip.setAttribute('fill', '#DA6F41');
-        dripsG.appendChild(el); dripsG.appendChild(tip);
-        var long = Math.random();
-        drips.push({ el: el, tip: tip, x: or.left + e.x + e.width * (u + (Math.random() - .5) * 0.08),
-                     w: e.width * (0.2 + Math.random() * 0.12), ph: Math.random() * 6,
-                     delay: Math.random() * 700 + (j === 1 ? 0 : 150), dur: 1200 + Math.random() * 600,
-                     max: reach * (0.8 + long * 0.5) });
-      });
-    }
-    return { out: out, inn: inn, top: top, reach: reach, drips: drips };
-  }
-
   // ---------- The pour ----------
   function pour(i) {
     if (busy) return;
@@ -333,8 +329,22 @@
     P.glassBox = P.glass.getBoundingClientRect();
     P.glassHalf = P.glassBox.width / 2;
     wdisp.setAttribute('scale', (R * 1.3).toFixed(1));
-    dripsG.innerHTML = ''; shineG.innerHTML = '';
-    P.melt = buildMelt();
+    dripsG.innerHTML = '';
+    for (var n = 0; n < 9; n++) {
+      var el = document.createElementNS(NS, 'line'), tip = document.createElementNS(NS, 'circle');
+      el.setAttribute('stroke-linecap', 'round');
+      dripsG.appendChild(el); dripsG.appendChild(tip);
+      var big = n % 2 === 0;
+      P.drips.push({ el: el, tip: tip, u: -0.9 + 1.8 * (n + 0.2 + Math.random() * 0.6) / 9, len: big ? 8 + Math.random() * 12 : 2 + Math.random() * 4,
+                     w: big ? 1.3 + Math.random() * 0.8 : 0.9 + Math.random() * 0.7, delay: Math.random() * 600, ph: Math.random() * 6 });
+    }
+    shineG.innerHTML = ''; P.shine = [];
+    [-0.62, -0.18, 0.4, 0.7].forEach(function (u, n) {
+      var el = document.createElementNS(NS, 'path');
+      el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#FBF4E6'); el.setAttribute('stroke-linecap', 'round');
+      el.setAttribute('stroke-opacity', n % 2 ? .22 : .35); el.setAttribute('stroke-width', (R * (n % 2 ? 0.25 : 0.4)).toFixed(1));
+      shineG.appendChild(el); P.shine.push({ el: el, u: u, ph: n * 1.9 });
+    });
     setTimeout(function () { setDrink(i); setPool({ dur: 0, top: 100 }); }, 700);
     run();
   }
