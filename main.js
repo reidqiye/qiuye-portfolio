@@ -398,6 +398,26 @@
   }
   window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
 
+  // ---------- The giant word: as wide as the bar, from the cream sky down to the sill ----------
+  function fitWord() {
+    var sc = $('scene'), r = sc.getBoundingClientRect(), wr = stageWrap.getBoundingClientRect();
+    var W = r.width, H = stageWrap.offsetHeight, ah = r.top - wr.top;
+    var fs = W * 0.97 / 3.826;                        // Anton: PORTFOLIO is 3.83em wide
+    var capTop = Math.max(ah * 0.3, 70), base = ah + r.height * 0.62;
+    var k = (base - capTop) / (fs * 0.859);           // stretch the capitals to fill that height
+    document.querySelectorAll('.bigword').forEach(function (svg) {
+      svg.setAttribute('width', W); svg.setAttribute('height', H);
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      if (svg.classList.contains('bw-in')) svg.style.top = (-ah) + 'px';
+      var t = svg.querySelector('text');
+      t.setAttribute('x', W / 2); t.setAttribute('y', base);
+      t.setAttribute('font-size', fs.toFixed(1)); t.setAttribute('textLength', (W * 0.97).toFixed(1));
+      t.setAttribute('transform', 'translate(0 ' + base.toFixed(1) + ') scale(1 ' + k.toFixed(3) + ') translate(0 ' + (-base).toFixed(1) + ')');
+    });
+  }
+  fitWord(); window.addEventListener('resize', fitWord);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitWord);
+
   // ---------- Initial state ----------
   light(null);
   setDrink(1);
