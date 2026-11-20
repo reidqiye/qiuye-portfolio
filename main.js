@@ -39,6 +39,9 @@
     }
     document.querySelectorAll('.vine').forEach(function (v) { v.style.setProperty('--amp', +v.dataset.win === i ? 4.8 : 2.6); });
     $('stars').style.opacity = i === 1 ? 1 : 0;
+    $('aboutfx').style.opacity = i === 0 ? 1 : 0;
+    $('hello').style.opacity = i === 2 ? 1 : 0;
+    $('cstars').style.opacity = i === 2 ? 1 : 0;
     $('shaker').style.animation = i === 1 ? 'shake 0.42s ease-in-out infinite' : 'none';
   }
 
