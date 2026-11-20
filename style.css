@@ -25,7 +25,7 @@ img { display: block; }
    --sw is the width of the bar scene. The whole facade is scaled so it fits the first screen. */
 :root { --sw: min(1440px, 100vw, calc(100vh * 4087 / 3079)); }
 .stage-wrap { position: relative; overflow: hidden; background: #E8E6DB; height: calc(var(--sw) * 3079 / 4087); }
-.stage { position: absolute; top: 0; left: 50%; width: calc(var(--sw) * 7363 / 4087); height: 100%; transform: translateX(-50%); background: url(assets/stage_bg.webp?v=4) center top / 100% 100% no-repeat; }
+.stage { position: absolute; top: 0; left: 50%; width: calc(var(--sw) * 7363 / 4087); height: 100%; transform: translateX(-50%); background: url(assets/stage_bg.webp?v=5) center top / 100% 100% no-repeat; }
 .scene { position: absolute; left: 50%; top: calc(var(--sw) * 1097 / 4087); width: var(--sw); aspect-ratio: 4320 / 2040; transform: translateX(-50%); 
   /* soften the scene's outer edges into your drawn wall and floor */
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 1.4%, #000 98.6%, transparent 100%), linear-gradient(to bottom, #000 95.5%, transparent 100%);
