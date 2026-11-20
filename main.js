@@ -48,18 +48,6 @@
     if (o.top !== undefined) pool.style.setProperty('--fillTop', o.top + '%');
     if (o.liq !== undefined) pool.style.setProperty('--liq', o.liq);
   }
-  var streams = $('streams');
-  DX.forEach(function (dx, n) {
-    var s = document.createElement('span');
-    s.style.width = DW[n] + 'px';
-    streams.appendChild(s);
-  });
-  function placeStreams(i) {
-    Array.prototype.forEach.call(streams.children, function (s, n) {
-      s.style.setProperty('--f', (CXF[i] + DX[n] / 4320).toFixed(4));
-    });
-  }
-  function streamHeight(h) { Array.prototype.forEach.call(streams.children, function (s) { s.style.height = h + '%'; }); }
   function showContent(on) {
     var c = $('poolContent');
     c.style.opacity = on ? 1 : 0;
@@ -71,36 +59,233 @@
     pool.setAttribute('aria-label', NAMES[i].toLowerCase());
     setPool({ liq: LIQ[i] });
   }
-  function drip(i, go) {
-    for (var n = 0; n < 3; n++) {
-      var active = n === i;
-      $('dripg' + n).style.opacity = active ? 1 : 0;
-      $('pud' + n).style.transform = active && go ? 'scale(1)' : 'scale(0)';
-      document.querySelectorAll('.drip' + n).forEach(function (p) { p.style.strokeDashoffset = active && go ? 0 : 1; });
+
+  // ---------- Liquid engine ----------
+  // Every drop is a circle. A "goo" filter blurs them and sharpens the edge again,
+  // so circles that come close melt into one blob and pull thin threads apart.
+  var NS = 'http://www.w3.org/2000/svg';
+  var fx = document.createElementNS(NS, 'svg');
+  fx.setAttribute('class', 'pour-fx'); fx.setAttribute('aria-hidden', 'true');
+  fx.innerHTML = '<defs><filter id="goo" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">' +
+    '<feGaussianBlur in="SourceGraphic" stdDeviation="6"/>' +
+    '<feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -10"/></filter></defs>' +
+    '<g filter="url(#goo)"><g id="fxWorld"><path id="fxBody"/><path id="fxRope" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g></g>';
+  document.body.appendChild(fx);
+  var world = fx.querySelector('#fxWorld'), body = fx.querySelector('#fxBody'), rope = fx.querySelector('#fxRope'), gooF = fx.querySelector('#goo'), gooBlur = fx.querySelector('feGaussianBlur');
+  var parts = [], spare = [], R = 10, running = false, last = 0;
+  var P = null;      // the current pour
+  var H = null;      // the hover drip
+
+  function sizeFx() {
+    var W = innerWidth, Hh = innerHeight;
+    fx.setAttribute('viewBox', '0 0 ' + W + ' ' + Hh);
+    gooF.setAttribute('x', -80); gooF.setAttribute('y', -80);
+    gooF.setAttribute('width', W + 160); gooF.setAttribute('height', Hh + 160);
+    var sw = $('scene').getBoundingClientRect().width;
+    R = Math.max(7, sw * 0.0072);
+    gooBlur.setAttribute('stdDeviation', (R * 0.5).toFixed(1));
+  }
+  sizeFx(); window.addEventListener('resize', sizeFx);
+
+  function geo(i) {      // where window i's sill is, in page coordinates
+    var r = $('scene').getBoundingClientRect(), sw = r.width;
+    return { cx: r.left + CXF[i] * sw, sill: r.top + scrollY + r.height * 0.6603, half: sw * 0.05, sw: sw };
+  }
+  function dot(x, y, r, kind, vx, vy) {
+    var el = spare.pop() || document.createElementNS(NS, 'circle');
+    world.appendChild(el);
+    var d = { x: x, y: y, r: r, vx: vx || 0, vy: vy || 0, kind: kind, el: el, age: 0 };
+    parts.push(d); return d;
+  }
+  function drop(d) { d.dead = true; }
+  function clearAll() {
+    parts.forEach(function (d) { d.el.remove(); spare.push(d.el); });
+    parts = []; body.setAttribute('d', ''); rope.setAttribute('d', '');
+  }
+  function ease(t) { t = Math.max(0, Math.min(1, t)); return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function clamp01(t) { return Math.max(0, Math.min(1, t)); }
+
+  function surfaceY(x, t) {    // the wavy top of the rising drink
+    if (!P || P.level === null) return Infinity;
+    var A = P.amp;
+    var y = P.level + A * (0.6 * Math.sin(x * 0.011 + t * 0.0042) + 0.4 * Math.sin(x * 0.026 - t * 0.0067));
+    var dx = (x - P.hitX) / (R * 7);
+    y -= P.crown * Math.exp(-dx * dx);          // the stream pushes up a little crown where it lands
+    return Math.max(P.poolTop, y);
+  }
+
+  function frame(now) {
+    var dt = Math.min(0.033, (now - last) / 1000 || 0.016); last = now;
+    var g = R * 260;             // gravity, scaled to the drawing
+    world.setAttribute('transform', 'translate(0 ' + (-scrollY) + ')');
+
+    // --- the pour timeline ---
+    if (P) {
+      var t = now - P.t0, G = P.g;
+      // 1. gather: a film spreads along the sill, four drops swell under it, then slide together into one
+      var grow = ease(t / 550), drain = clamp01((t - 1700) / 800), join = ease((t - 450) / 450);
+      P.film.forEach(function (d) {
+        d.x = lerp(d.hx, G.cx, Math.max(join * 0.35, drain)); d.y = G.sill - R * 0.15;
+        d.r = R * 0.95 * grow * (1 - drain);
+      });
+      if (!P.released) {
+        P.hang.forEach(function (d, n) {
+          var e = ease((t - n * 70) / 550);
+          d.x = lerp(d.hx, G.cx, join);
+          d.y = G.sill + R * (0.5 + 1.4 * e + 0.9 * join) + Math.sin(t * 0.014 + n * 1.7) * R * 0.18 * e;
+          d.r = R * (0.2 + 0.9 * e + 0.5 * join);
+        });
+        if (t > 950) {           // 2. the big drop lets go and pulls a stream behind it
+          P.released = true; P.tRel = t;
+          P.hang.forEach(function (d, n) { if (n) drop(d); });
+          P.tip = P.hang[0]; P.tip.x = G.cx; P.tip.kind = 'tip'; P.tip.r = R * 1.5;
+        }
+      }
+      if (P.released) {
+        var tr = (t - P.tRel) / 1000, g2 = g * 0.9;
+        var sway = function (y) { var k = clamp01((y - G.sill) / (R * 25)); return G.cx + Math.sin(t * 0.005 - (y - G.sill) * 0.0045) * R * 1.4 * k; };
+        var tipY = G.sill + R * 3 + 0.5 * g2 * tr * tr;
+        var surf = surfaceY(G.cx, now);
+        if (P.tip) {
+          P.tip.y = Math.min(tipY, surf); P.tip.x = sway(P.tip.y);
+          if (tipY >= surf) { drop(P.tip); P.tip = null; P.landed = true; }
+        }
+        var topY = G.sill + R * 0.3;
+        if (t > 2350) { var td = (t - 2350) / 1000; topY += 0.5 * g2 * td * td; }      // the stream lets go of the sill
+        var botY = Math.min(tipY, surf + R);
+        P.streamX = sway(Math.min(botY, surf));
+        if (botY > topY + 2) {
+          var pts = [], N = 28;
+          for (var q2 = 0; q2 <= N; q2++) { var yy = lerp(topY, botY, q2 / N); pts.push(sway(yy).toFixed(1) + ' ' + yy.toFixed(1)); }
+          rope.setAttribute('d', 'M' + pts.join(' L'));
+          var thin = t > 2350 ? Math.max(0.35, 1 - (t - 2350) / 500) : 1;
+          rope.setAttribute('stroke-width', (R * 1.35 * thin).toFixed(1));
+          rope.setAttribute('stroke', P.color);
+        } else rope.setAttribute('d', '');
+        // a few stray droplets peel off the stream; splashes where it lands
+        if (t < 2450) {
+          P.acc += dt * 14;
+          while (P.acc >= 1) {
+            P.acc -= 1;
+            var yy2 = lerp(topY + R * 10, botY, Math.random());
+            dot(sway(yy2) + (Math.random() - .5) * R * 1.2, yy2, R * (0.45 + Math.random() * 0.3), 'fall', (Math.random() - .5) * R * 6, R * 20);
+          }
+        }
+        if (P.landed && t < 2550) {
+          P.sacc = (P.sacc || 0) + dt * 22;
+          while (P.sacc >= 1) {
+            P.sacc -= 1;
+            dot(P.streamX + (Math.random() - .5) * R, surf - R * 0.6, R * (0.5 + Math.random() * 0.35), 'splash',
+                (Math.random() - .5) * R * 50, -R * (20 + Math.random() * 30));
+          }
+        }
+      }
+      // 3. scroll down to the pool, then fill it
+      if (t > 1000 && !P.scrolled) {
+        var st = ease((t - 1000) / 1150);
+        scrollTo(0, lerp(P.y0, P.poolTop, st));
+        if (st >= 1) P.scrolled = true;
+      }
+      if (t > 1250) {
+        var bottom = P.poolTop + innerHeight + R * 6;
+        var f = ease((t - 1250) / 1500);
+        P.level = lerp(bottom, P.poolTop - R * 2, f);
+        P.amp = R * (t < 2400 ? 1.1 : 1.1 * Math.exp(-(t - 2400) / 450));
+        P.crown = R * (t < 2400 ? 1.8 : Math.max(0, 1.8 - (t - 2400) / 200));
+        P.hitX = P.streamX;
+        var bp = [], x0 = -40, x1 = innerWidth + 40, step = 18;
+        for (var x = x0; x <= x1; x += step) bp.push(x.toFixed(1) + ' ' + surfaceY(x, now).toFixed(1));
+        var deep = P.poolTop + innerHeight * 3;
+        body.setAttribute('d', 'M' + bp.join(' L') + ' L' + x1 + ' ' + deep + ' L' + x0 + ' ' + deep + 'Z');
+        body.setAttribute('fill', P.color);
+      }
+      if (t > 2800 && !P.handed) {         // hand over to the real pool (with grain) underneath
+        P.handed = true;
+        setPool({ dur: 0, top: 0 }); showContent(true);
+      }
+      if (t > 3000) { body.setAttribute('d', ''); rope.setAttribute('d', ''); }
+      if (t > 3400) { P.film.forEach(drop); P = null; busy = false; light(null); }
     }
+
+    // --- hover: one drop swells under the sill and falls ---
+    if (H && !P) {
+      var ht = (now - H.t0) % 1800, e2 = ease(ht / 1150);
+      if (!H.anchor) { H.anchor = dot(H.g.cx, H.g.sill, 0, 'fixed'); H.bead = dot(H.g.cx, H.g.sill, 0, 'fixed'); }
+      H.anchor.r = R * 0.55 * Math.min(1, ht / 300);
+      if (ht < 1150) { H.bead.y = H.g.sill + R * (0.3 + 1.5 * e2); H.bead.r = R * (0.25 + 0.6 * e2); H.dropped = false; }
+      else if (!H.dropped) {
+        H.dropped = true;
+        var fd = dot(H.bead.x, H.bead.y, H.bead.r, 'hint', 0, R * 4); fd.y0 = fd.y;
+        H.bead.r = 0;
+      }
+    }
+
+    // --- move every falling drop ---
+    for (var n = 0; n < parts.length; n++) {
+      var d = parts[n];
+      if (d.kind === 'fall' || d.kind === 'splash' || d.kind === 'hint') {
+        d.vy += g * dt;
+        
+        d.vx *= 0.985;
+        d.x += d.vx * dt; d.y += d.vy * dt;
+        if (d.kind === 'fall') d.r *= 1 - 0.05 * dt;
+        var sy = surfaceY(d.x, now);
+        if (d.y + d.r * 0.2 > sy) {
+          if (d.kind === 'fall' && Math.random() < 0.3) {
+            var m = 1 + (Math.random() < .4);
+            for (var j = 0; j < m; j++) dot(d.x, sy - R * 0.5, R * (0.55 + Math.random() * 0.25), 'splash',
+              (Math.random() - .5) * R * 40, -R * (22 + Math.random() * 28));
+          }
+          drop(d);
+        }
+        if (d.kind === 'splash' && d.vy > 0 && d.y > sy - R) drop(d);
+        if (d.kind === 'hint') { var fall = d.y - d.y0; d.r *= 1 - 2.2 * dt; if (fall > R * 14 || d.r < 1) drop(d); }
+        if (d.y - scrollY > innerHeight + 200) drop(d);
+      }
+    }
+    for (var m2 = parts.length - 1; m2 >= 0; m2--) {
+      var q = parts[m2];
+      if (q.dead) { q.el.remove(); spare.push(q.el); parts.splice(m2, 1); continue; }
+      q.el.setAttribute('cx', q.x.toFixed(1)); q.el.setAttribute('cy', q.y.toFixed(1));
+      q.el.setAttribute('r', Math.max(0, q.r).toFixed(1));
+      q.el.setAttribute('fill', q.color || (P ? P.color : (H ? LIQ[H.i] : '#000')));
+    }
+
+    if (P || H || parts.length) requestAnimationFrame(frame);
+    else { running = false; fx.classList.remove('on'); }
+  }
+  function run() { if (!running) { running = true; fx.classList.add('on'); last = performance.now(); requestAnimationFrame(frame); } }
+
+  function hoverDrip(i) {
+    if (calm) return;
+    if (H) { H.anchor && drop(H.anchor); H.bead && drop(H.bead); H = null; }
+    if (i === null || busy) return;
+    H = { i: i, g: geo(i), t0: performance.now() };
+    run();
   }
 
   // ---------- The pour ----------
   function pour(i) {
     if (busy) return;
     busy = true;
-    timers.forEach(clearTimeout); timers = [];
+    hoverDrip(null);
     light(i);
-    placeStreams(i);
-    setPool({ dur: 0, top: 100 });
     showContent(false);
-    streams.style.opacity = 0; streamHeight(0);
-    drip(i, false);
-    later(40, function () { drip(i, true); });
-    later(500, function () { setDrink(i); });
-    later(calm ? 100 : 800, function () {
-      pool.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
-      setPool({ dur: 1500 });
-      streams.style.opacity = 1; streamHeight(100);
-    });
-    later(calm ? 150 : 1100, function () { setPool({ top: 0 }); });
-    later(calm ? 200 : 2500, function () { showContent(true); streams.style.opacity = 0; });
-    later(calm ? 250 : 3000, function () { drip(null, false); light(null); busy = false; });
+    if (calm) {
+      setDrink(i); setPool({ dur: 0, top: 0 });
+      pool.scrollIntoView({ block: 'start' }); showContent(true);
+      light(null); busy = false; return;
+    }
+    setPool({ dur: 0, top: 100 });
+    var G = geo(i);
+    P = { t0: performance.now(), g: G, color: LIQ[i], y0: scrollY,
+          poolTop: pool.getBoundingClientRect().top + scrollY,
+          film: [], hang: [], released: false, acc: 0, level: null, amp: 0, crown: 0, hitX: G.cx, streamX: G.cx };
+    for (var n = 0; n < 7; n++) { var hx = G.cx + (n / 6 - .5) * 2 * G.half * 0.9; var fd = dot(hx, G.sill, 0, 'fixed'); fd.hx = hx; P.film.push(fd); }
+    DX.forEach(function (dx) { var hd = dot(G.cx + dx / 4320 * G.sw, G.sill, 0, 'fixed'); hd.hx = hd.x; P.hang.push(hd); });
+    setTimeout(function () { setDrink(i); setPool({ dur: 0, top: 100 }); }, 700);
+    run();
   }
 
   // ---------- Menu ----------
@@ -137,7 +322,7 @@
   document.querySelectorAll('[data-go]').forEach(function (b) { b.addEventListener('click', function () { pour(+b.dataset.go); }); });
   document.querySelectorAll('[data-en]').forEach(function (b) {
     var i = +b.dataset.en;
-    var on = function () { if (!busy) light(i); }, off = function () { if (!busy) light(null); };
+    var on = function () { if (!busy) { light(i); hoverDrip(i); } }, off = function () { if (!busy) { light(null); hoverDrip(null); } };
     b.addEventListener('mouseenter', on); b.addEventListener('focus', on);
     b.addEventListener('mouseleave', off); b.addEventListener('blur', off);
   });
