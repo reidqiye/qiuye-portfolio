@@ -25,10 +25,10 @@ img { display: block; }
    --sw is the width of the bar scene. It fills the screen width; the drawn side walls only show on screens wider than 1920px. */
 :root { --sw: min(1920px, 100vw);
   /* --ah: visible height of the cream title band. On short screens the plain top of the band is cut so more of the bar fits. */
-  --ah: clamp(calc(var(--sw) * .15), calc(100vh - var(--sw) * 1982 / 4087), calc(var(--sw) * 1097 / 4087));
+  --ah: clamp(calc(var(--sw) * .15), calc(100vh - var(--sw) * 1848 / 4087), calc(var(--sw) * 1097 / 4087));
   --cut: calc(var(--sw) * 1097 / 4087 - var(--ah)); }
-.stage-wrap { position: relative; overflow: hidden; background: #E8E6DB; height: calc(var(--sw) * 3079 / 4087 - var(--cut)); }
-.stage { position: absolute; top: calc(-1 * var(--cut)); left: 50%; width: calc(var(--sw) * 7363 / 4087); height: calc(var(--sw) * 3079 / 4087); transform: translateX(-50%); background: url(assets/stage_bg.webp?v=7) center top / 100% 100% no-repeat; }
+.stage-wrap { position: relative; overflow: hidden; background: #E8E6DB; height: calc(var(--sw) * 2945 / 4087 - var(--cut)); } /* ends at the bottom of the cream step */
+.stage { position: absolute; top: calc(-1 * var(--cut)); left: 50%; width: calc(var(--sw) * 7363 / 4087); height: calc(var(--sw) * 3079 / 4087); transform: translateX(-50%); background: url(assets/stage_bg.webp?v=8) center top / 100% 100% no-repeat; }
 .scene { position: absolute; left: 50%; top: var(--ah); width: var(--sw); aspect-ratio: 4320 / 2040; transform: translateX(-50%); 
   /* soften the scene's outer edges into your drawn wall and floor */
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 1.4%, #000 98.6%, transparent 100%), linear-gradient(to bottom, #000 95.5%, transparent 100%);
@@ -62,8 +62,8 @@ img { display: block; }
 /* windows + labels */
 .win { position: absolute; background: transparent; border: 0; padding: 0; margin: 0; cursor: pointer; border-radius: 50% 50% 0 0 / 29.6% 29.6% 0 0; }
 .win:focus-visible { outline: 3px solid var(--paper); outline-offset: 4px; }
-.labels { position: absolute; left: 0; right: 0; top: 91.2%; pointer-events: none; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: clamp(24px, 2.4vw, 34px); line-height: 1; letter-spacing: .02em; }
-.labels span { position: absolute; transform: translateX(-50%); transition: color 300ms ease; }
+.labels { position: absolute; left: 0; right: 0; top: 92.3%; pointer-events: none; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: clamp(24px, 2.4vw, 34px); line-height: 1; letter-spacing: .02em; }
+.labels span { position: absolute; transform: translate(-50%, -50%); transition: color 300ms ease; }
 
 /* ---------- Pool (the drink below) ---------- */
 .pool { position: relative; min-height: 100vh; background: var(--ink); overflow: hidden; --liq: var(--orange); --fillTop: 0%; --fillDur: 0ms; }
