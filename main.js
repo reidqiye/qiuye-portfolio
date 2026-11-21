@@ -161,7 +161,7 @@
         scrollTo(0, P.poolTop);
         if (P.sea) { P.sea.remove(); P.sea = null; }
       }
-      if (t > (P.arcs ? 2620 : 3400)) {
+      if (t > (P.arcs ? 3240 : 3400)) {
         if (P.arcLayer) { P.arcLayer.remove(); P.arcLayer = null; }
         if (P.sea) { P.sea.remove(); P.sea = null; }
         if (P.glass) { P.glass.remove(); P.glass = null; }
@@ -288,7 +288,7 @@
     var near = function (x, y) { var dx = Math.max(0, -x, x - W), dy = Math.max(0, -y, y - Hh); return Math.hypot(dx, dy); };
     var d = [
       { col: '#7FA585', ring: '#E9E7DB', x: wx, y: wy, t0: 1100, dur: 560, ph: 1.7 },
-      { col: P.color, ring: '#E9E7DB', x: 1.55 * W, y: -0.6 * Hh, t0: 1560, dur: 430, ph: 2.6, stars: true }
+      { col: P.color, ring: '#E9E7DB', x: 1.55 * W, y: -0.6 * Hh, t0: 2150, dur: 460, ph: 2.6, stars: true }
     ];
     d.forEach(function (c) { c.r0 = c === d[0] ? g.width * 0.45 : near(c.x, c.y); c.r1 = far(c.x, c.y); });
     var el = document.createElement('div');
@@ -338,7 +338,7 @@
   function shakeSil(L, ts) {
     var sil = L.querySelector('.arc-sil'); if (!sil) return;
     // the figure stays still; the shaker gives two easy shakes, and each one sends out a thin ring
-    var sh = sil.querySelector('.sil-shaker'), cyc = 420, n = Math.floor(ts / cyc), u = (ts % cyc) / cyc;
+    var sh = sil.querySelector('.sil-shaker'), cyc = 600, n = Math.floor(ts / cyc), u = (ts % cyc) / cyc;
     var sw = n < 2 ? Math.sin(u * Math.PI * 2) * (1 - u * 0.3) : 0;
     // the arms swing from the shoulder, the shaker turns a little further in the hands
     sil.querySelector('.sil-arms').style.transform = 'rotate(' + (sw * 5).toFixed(2) + 'deg)';
@@ -383,14 +383,14 @@
       if (n === 0) shakeSil(L, t - c.t0);
     });
     // fully covered: move the page to the menu underneath, hold a breath, then let the drink clear
-    if (t > 2060 && !P.handed) {
+    if (t > 2680 && !P.handed) {
       P.handed = true;
       if (P.glass) { P.glass.remove(); P.glass = null; }
       setPool({ dur: 0, top: 0 }); scrollTo(0, P.poolTop);
     }
-    if (t > 2220) {
+    if (t > 2840) {
       if (!P.shown) { P.shown = true; showContent(true); }
-      L.style.opacity = (1 - clamp01((t - 2220) / 340)).toFixed(3);
+      L.style.opacity = (1 - clamp01((t - 2840) / 340)).toFixed(3);
     }
   }
 
@@ -540,6 +540,27 @@
   }
   fitWord(); window.addEventListener('resize', fitWord);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitWord);
+
+  // ---------- Decode the transition's images ahead of time (otherwise the first frame can flash a solid block) ----------
+  (function preload() {
+    var keep = window.__pre = [];
+    try {
+      Array.prototype.forEach.call(document.styleSheets, function (sh) {
+        Array.prototype.forEach.call(sh.cssRules || [], function (r) {
+          (r.cssText.match(/url\("(data:image\/png;base64,[^"]+)"\)/g) || []).forEach(function (u) {
+            var img = new Image(); img.src = u.slice(5, -2); keep.push(img); if (img.decode) img.decode().catch(function () {});
+          });
+        });
+      });
+    } catch (e) {}
+    // also paint the silhouette once, invisibly, so the browser has its masks ready
+    var warm = document.createElement('div');
+    warm.setAttribute('aria-hidden', 'true');
+    warm.style.cssText = 'position:fixed;left:0;bottom:0;width:120px;height:100px;opacity:.01;pointer-events:none;z-index:-1';
+    warm.innerHTML = '<div class="arc-sil" style="width:120px"><div class="sil-body"></div><div class="sil-arms"><div class="sil-arms-fill"></div><div class="sil-shaker"></div></div></div><div class="arc-grain"></div>';
+    document.body.appendChild(warm);
+    setTimeout(function () { warm.remove(); }, 4000);
+  })();
 
   // ---------- Initial state ----------
   light(null);
