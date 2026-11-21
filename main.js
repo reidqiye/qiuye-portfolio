@@ -317,7 +317,7 @@
         html += '</svg>';
       }
       html += '<div class="arc-word aw' + n + '" style="color:' + big[n][1] + '">' + big[n][0] + '</div>';
-      if (n === 0) html += '<div class="arc-sil"><div class="sil-body"></div><div class="sil-shaker"></div><svg class="sil-waves" viewBox="-50 -50 100 100"><circle r="0"/><circle r="0"/><circle r="0"/></svg></div>';
+      if (n === 0) html += '<div class="arc-sil"><div class="sil-body"></div><div class="sil-arms"><div class="sil-arms-fill"></div><div class="sil-shaker"></div><svg class="sil-waves" viewBox="-50 -50 100 100"><circle r="0"/><circle r="0"/><circle r="0"/></svg></div></div>';
       html += '<div class="arc-lab al-a" style="color:#E9E7DB">' + lab[n][0] + '</div>';
       html += '<div class="arc-lab al-b" style="color:#E9E7DB">' + lab[n][1] + '</div>';
       html += '</div>';
@@ -338,9 +338,11 @@
   function shakeSil(L, ts) {
     var sil = L.querySelector('.arc-sil'); if (!sil) return;
     // the figure stays still; the shaker gives two easy shakes, and each one sends out a thin ring
-    var sh = sil.querySelector('.sil-shaker'), cyc = 520, n = Math.floor(ts / cyc), u = (ts % cyc) / cyc;
+    var sh = sil.querySelector('.sil-shaker'), cyc = 420, n = Math.floor(ts / cyc), u = (ts % cyc) / cyc;
     var sw = n < 2 ? Math.sin(u * Math.PI * 2) * (1 - u * 0.3) : 0;
-    sh.style.transform = 'rotate(' + (sw * 14).toFixed(2) + 'deg)';
+    // the arms swing from the shoulder, the shaker turns a little further in the hands
+    sil.querySelector('.sil-arms').style.transform = 'rotate(' + (sw * 5).toFixed(2) + 'deg)';
+    sh.style.transform = 'rotate(' + (sw * 9).toFixed(2) + 'deg)';
     sil.querySelectorAll('.sil-waves circle').forEach(function (ci, q) {
       var ph = (ts - q * cyc) / 900;
       if (ph < 0 || ph > 1 || q > 1) { ci.setAttribute('opacity', 0); return; }
