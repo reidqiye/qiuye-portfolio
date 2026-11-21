@@ -308,10 +308,6 @@
     var lab = [['SHAKEN, NOT STIRRED', 'POUR 01 / 02'], ["TONIGHT'S POUR", 'SERVED COLD · 5 SIGNATURES']];
     d.forEach(function (c, n) {
       html += '<div class="arc arc' + n + '" style="background:' + c.col + '"><div class="arc-grain"></div>';
-      html += '<div class="arc-word aw' + n + '" style="color:' + big[n][1] + '">' + big[n][0] + '</div>';
-      if (n === 0) html += '<div class="arc-sil"><div class="sil-body"></div><div class="sil-shaker"></div><svg class="sil-waves" viewBox="-50 -50 100 100"><circle r="0"/><circle r="0"/><circle r="0"/></svg></div>';
-      html += '<div class="arc-lab al-a" style="color:#E9E7DB">' + lab[n][0] + '</div>';
-      html += '<div class="arc-lab al-b" style="color:#E9E7DB">' + lab[n][1] + '</div>';
       if (c.stars) {
         html += '<svg class="arc-stars" width="' + W + '" height="' + Hh + '">';
         for (var k = 0; k < 18; k++) {
@@ -320,6 +316,10 @@
         }
         html += '</svg>';
       }
+      html += '<div class="arc-word aw' + n + '" style="color:' + big[n][1] + '">' + big[n][0] + '</div>';
+      if (n === 0) html += '<div class="arc-sil"><div class="sil-body"></div><div class="sil-shaker"></div><svg class="sil-waves" viewBox="-50 -50 100 100"><circle r="0"/><circle r="0"/><circle r="0"/></svg></div>';
+      html += '<div class="arc-lab al-a" style="color:#E9E7DB">' + lab[n][0] + '</div>';
+      html += '<div class="arc-lab al-b" style="color:#E9E7DB">' + lab[n][1] + '</div>';
       html += '</div>';
     });
     el.innerHTML = html + svg;
@@ -337,13 +337,14 @@
   // the bartender shakes the shaker; every shake sends out a thin ring
   function shakeSil(L, ts) {
     var sil = L.querySelector('.arc-sil'); if (!sil) return;
-    var k = clamp01(ts / 1100), beat = ts * 0.022;
-    sil.style.transform = 'translate(' + (-3 * k).toFixed(2) + 'vw, 0) scale(' + (1 + 0.05 * k).toFixed(3) + ') rotate(' + (Math.sin(beat * 0.5) * 1.2).toFixed(2) + 'deg)';
-    var sh = sil.querySelector('.sil-shaker');
-    sh.style.transform = 'translate(' + (Math.sin(beat) * 1.6).toFixed(2) + '%, ' + (Math.cos(beat * 2) * 2.2).toFixed(2) + '%) rotate(' + (Math.sin(beat) * 9).toFixed(2) + 'deg)';
+    // the figure stays still; the shaker gives two easy shakes, and each one sends out a thin ring
+    var sh = sil.querySelector('.sil-shaker'), cyc = 520, n = Math.floor(ts / cyc), u = (ts % cyc) / cyc;
+    var sw = n < 2 ? Math.sin(u * Math.PI * 2) * (1 - u * 0.3) : 0;
+    sh.style.transform = 'translate(0, ' + (-sw * 3).toFixed(2) + '%) rotate(' + (sw * 7).toFixed(2) + 'deg)';
     sil.querySelectorAll('.sil-waves circle').forEach(function (ci, q) {
-      var ph = ((ts / 420) + q / 3) % 1;
-      ci.setAttribute('r', (6 + ph * 40).toFixed(1)); ci.setAttribute('opacity', (0.9 * (1 - ph)).toFixed(2));
+      var ph = (ts - q * cyc) / 900;
+      if (ph < 0 || ph > 1 || q > 1) { ci.setAttribute('opacity', 0); return; }
+      ci.setAttribute('r', (8 + ph * 44).toFixed(1)); ci.setAttribute('opacity', (0.9 * (1 - ph)).toFixed(2));
     });
   }
   function runArcs(P, t, now) {
