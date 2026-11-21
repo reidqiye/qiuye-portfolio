@@ -71,8 +71,10 @@
   fx.setAttribute('class', 'pour-fx'); fx.setAttribute('aria-hidden', 'true');
   fx.innerHTML = '<defs><filter id="goo" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">' +
     '<feGaussianBlur in="SourceGraphic" stdDeviation="6"/>' +
-    '<feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -10"/></filter></defs>' +
-    '<g filter="url(#goo)"><g id="fxWorld"><path id="fxBody"/><path id="fxRope" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path id="fxCurtain"/><g id="fxDrips"></g></g></g><g id="fxShine"></g>';
+    '<feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -10"/></filter>' +
+    '<linearGradient id="curtGrad" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100" y2="0">' +
+    '<stop offset="0" class="cg-d"/><stop offset=".16" class="cg-b"/><stop offset=".36" class="cg-l"/><stop offset=".52" class="cg-b"/><stop offset=".84" class="cg-b"/><stop offset="1" class="cg-d"/></linearGradient></defs>' +
+    '<g filter="url(#goo)"><g id="fxWorld"><path id="fxBody"/><path id="fxRope" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path id="fxCurtain"/><g id="fxDrips"></g></g></g><g id="fxShine"></g><path id="fxLip" fill="none" stroke-linecap="round"/>';
   document.body.appendChild(fx);
   var wf = document.createElementNS(NS, 'svg');
   wf.setAttribute('width', 0); wf.setAttribute('height', 0); wf.setAttribute('aria-hidden', 'true');
@@ -82,7 +84,7 @@
     '<feDisplacementMap id="wdisp" in="SourceGraphic" scale="14" xChannelSelector="R" yChannelSelector="G"/></filter>';
   document.body.appendChild(wf);
   var wturb = wf.querySelector('#wturb'), wdisp = wf.querySelector('#wdisp');
-  var world = fx.querySelector('#fxWorld'), body = fx.querySelector('#fxBody'), rope = fx.querySelector('#fxRope'), curtain = fx.querySelector('#fxCurtain'), dripsG = fx.querySelector('#fxDrips'), shineG = fx.querySelector('#fxShine'), gooF = fx.querySelector('#goo'), gooBlur = fx.querySelector('feGaussianBlur');
+  var world = fx.querySelector('#fxWorld'), body = fx.querySelector('#fxBody'), rope = fx.querySelector('#fxRope'), curtain = fx.querySelector('#fxCurtain'), dripsG = fx.querySelector('#fxDrips'), shineG = fx.querySelector('#fxShine'), lipEl = fx.querySelector('#fxLip'), curtGrad = fx.querySelector('#curtGrad'), gooF = fx.querySelector('#goo'), gooBlur = fx.querySelector('feGaussianBlur');
   var parts = [], spare = [], R = 10, running = false, last = 0;
   var P = null;      // the current pour
   var H = null;      // the hover drip
@@ -115,6 +117,11 @@
     parts.forEach(function (d) { d.el.remove(); spare.push(d.el); });
     parts = []; body.setAttribute('d', ''); rope.setAttribute('d', '');
   }
+  function mix(a, b, k) {
+    var pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16), o = '#';
+    [16, 8, 0].forEach(function (sh) { var c = Math.round(((pa >> sh) & 255) * (1 - k) + ((pb >> sh) & 255) * k); o += (c < 16 ? '0' : '') + c.toString(16); });
+    return o;
+  }
   function ease(t) { t = Math.max(0, Math.min(1, t)); return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
   function lerp(a, b, t) { return a + (b - a) * t; }
   function clamp01(t) { return Math.max(0, Math.min(1, t)); }
@@ -138,71 +145,28 @@
       var t = now - P.t0, G = P.g;
       // 1. the window fills up like a glass
       var fill = ease(t / 1300);
-      P.lv = lerp(1.02, 0.03, fill);
+      P.lv = lerp(1.02, -0.1, fill);
       var gb = P.glassBox, waveA = (R * 0.7) / gb.height;
       drawGlass(P, t, waveA * (1 - 0.5 * clamp01((t - 1300) / 600)));
-      // 2. it spills over the sill as a curtain as wide as the window, with sticky drips along its edge
-      var surf = (P.level == null) ? Infinity : P.level;
-      if (t > 1150) {
-        var tc = t - 1150, kf = clamp01((tc - 650) / 1350);
-        var D = P.poolTop + innerHeight * 1.2 - G.sill;
-        var yb = Math.min(G.sill + R + R * 4 * ease(tc / 700) + D * kf * kf, surf + R * 2);   // creeps down the bar front, then lets go
-        var hw0 = P.glassHalf * 0.98;
-        var lip = R * 1.1 * Math.min(1, tc / 250);
-        var pts = [], M = 30;
-        for (var q = 0; q <= M; q++) {
-          var u = q / M, y = lerp(G.sill - lip, yb, u);
-          pts.push((G.cx + hw0 + Math.sin(y * 0.02 + t * 0.006) * R * 0.35 + Math.pow(u, 3) * R * 1.5).toFixed(1) + ' ' + y.toFixed(1));
-        }
-        for (q = M; q >= 0; q--) {
-          var u2 = q / M, y2 = lerp(G.sill - lip, yb, u2);
-          pts.push((G.cx - hw0 - Math.sin(y2 * 0.018 + t * 0.005 + 1) * R * 0.35 - Math.pow(u2, 3) * R * 1.5).toFixed(1) + ' ' + y2.toFixed(1));
-        }
-        curtain.setAttribute('d', 'M' + pts.join(' L') + 'Z');
-        curtain.setAttribute('fill', P.color);
-        P.drips.forEach(function (dp) {
-          var x = G.cx + dp.u * hw0 + Math.sin(t * 0.004 + dp.ph) * R * 0.2;
-          var grow = ease((tc - dp.delay) / 900), len = dp.len * R * grow * (1 + 0.15 * Math.sin(t * 0.007 + dp.ph));
-          var y1 = yb - R, y2b = Math.min(yb + len, surf + R);
-          dp.el.setAttribute('x1', x.toFixed(1)); dp.el.setAttribute('x2', x.toFixed(1));
-          dp.el.setAttribute('y1', y1.toFixed(1)); dp.el.setAttribute('y2', Math.max(y1, y2b).toFixed(1));
-          dp.el.setAttribute('stroke-width', (dp.w * R).toFixed(1)); dp.el.setAttribute('stroke', P.color);
-          dp.tip.setAttribute('cx', x.toFixed(1)); dp.tip.setAttribute('cy', Math.max(y1, y2b).toFixed(1));
-          dp.tip.setAttribute('r', (dp.w * R * 0.68 * (0.6 + 0.4 * grow)).toFixed(1)); dp.tip.setAttribute('fill', P.color);
-        });
-        shineG.setAttribute('transform', 'translate(0 ' + (-scrollY) + ')');
-        P.shine.forEach(function (sh) {
-          var x = G.cx + sh.u * hw0 + Math.sin(t * 0.005 + sh.ph) * R * 0.3;
-          var ya = G.sill + R * 1.5, yz = Math.min(yb - R * 2.5, surf - R);
-          sh.el.setAttribute('d', yz > ya ? 'M' + x.toFixed(1) + ' ' + ya.toFixed(1) + ' L' + (x + Math.sin(t * 0.004 + sh.ph) * R * 0.4).toFixed(1) + ' ' + yz.toFixed(1) : '');
-        });
+      if (P.arcs) { runArcs(P, t, now); }
+      // 2. the drink rises over the screen as a seam: above it the bar, just under its surface the bar
+      //    seen through the drink, and below a ragged ink-bleed edge the menu page itself
+      else if (t > 1150) {
+        if (!P.sea) { setPool({ dur: 0, top: 0 }); showContent(true); P.sea = makeSea(P.i); }
+        var kr = ease((t - 1150) / 1650);
+        drawSea(P, t, lerp(1.03, -0.42, kr), (R * 0.9) / innerHeight, clamp01((t - 1150) / 1650));
       }
-      // the drink rises underneath and swallows the curtain
-      if (t > 2100) {
-        var f = ease((t - 2100) / 1150);
-        P.level = lerp(P.poolTop + innerHeight + R * 6, P.poolTop - R * 2, f);
-        P.amp = R * (t < 3000 ? 1.0 : Math.exp(-(t - 3000) / 400));
-        P.crown = R * 1.6 * (1 - clamp01((t - 2900) / 300));
-        P.hitX = G.cx;
-        var bp = [], x0 = -40, x1 = innerWidth + 40;
-        for (var xx = x0; xx <= x1; xx += 18) bp.push(xx.toFixed(1) + ' ' + surfaceY(xx, now).toFixed(1));
-        var deep = P.poolTop + innerHeight * 3;
-        body.setAttribute('d', 'M' + bp.join(' L') + ' L' + x1 + ' ' + deep + ' L' + x0 + ' ' + deep + 'Z');
-        body.setAttribute('fill', P.color);
-      }
-      // 3. scroll down with it
-      if (t > 1800 && !P.scrolled) {
-        var st = ease((t - 1800) / 1250);
-        scrollTo(0, lerp(P.y0, P.poolTop, st));
-        if (st >= 1) P.scrolled = true;
-      }
-      if (t > 3250 && !P.handed) {         // the curtain now covers the screen: hand over to the real pool (with grain)
+      if (!P.arcs && t > 2850 && !P.handed) {         // the menu is fully revealed: jump there for real
         P.handed = true;
-        setPool({ dur: 0, top: 0 }); showContent(true);
+        scrollTo(0, P.poolTop);
+        if (P.sea) { P.sea.remove(); P.sea = null; }
       }
-      if (t > 3400) { curtain.setAttribute('d', ''); body.setAttribute('d', ''); dripsG.innerHTML = ''; shineG.innerHTML = ''; P.drips = []; P.shine = []; }
-      if (t > 3400 && P.glass) { P.glass.remove(); P.glass = null; }
-      if (t > 3600) { P.film.forEach(drop); P = null; busy = false; light(null); }
+      if (t > (P.arcs ? 3250 : 3400)) {
+        if (P.arcLayer) { P.arcLayer.remove(); P.arcLayer = null; }
+        if (P.sea) { P.sea.remove(); P.sea = null; }
+        if (P.glass) { P.glass.remove(); P.glass = null; }
+        P.film.forEach(drop); P = null; busy = false; light(null);
+      }
     }
 
     // --- hover: one drop swells under the sill and falls ---
@@ -312,6 +276,131 @@
     wturb.setAttribute('baseFrequency', '0.009 ' + (0.024 + 0.004 * Math.sin(t * 0.004)).toFixed(4));
   }
 
+  // ---------- Works: giant circles slicing across the screen ----------
+  // Three huge discs (cream, green, then the drink). The first grows out of the filled window; the other two
+  // have their centres far off screen, so only their curved edges sweep across. Each edge has a faint ripple
+  // and a thin ring running just outside it. The drink disc carries little stars.
+  var STAR = 'M0-1L.18-.18 1 0 .18.18 0 1-.18.18-1 0-.18-.18Z';
+  function makeArcs(P) {
+    var W = innerWidth, Hh = innerHeight, g = P.glass.getBoundingClientRect();
+    var wx = g.left + g.width / 2, wy = g.top + g.height * 0.55;
+    var far = function (x, y) { return Math.max(Math.hypot(x, y), Math.hypot(W - x, y), Math.hypot(x, Hh - y), Math.hypot(W - x, Hh - y)) * 1.04; };
+    var near = function (x, y) { var dx = Math.max(0, -x, x - W), dy = Math.max(0, -y, y - Hh); return Math.hypot(dx, dy); };
+    var d = [
+      { col: '#E9E7DB', ring: '#272523', x: wx, y: wy, t0: 1150, dur: 650, ph: 0.4 },
+      { col: '#7FA585', ring: '#E9E7DB', x: -0.55 * W, y: 1.45 * Hh, t0: 1650, dur: 560, ph: 1.7 },
+      { col: P.color, ring: '#E9E7DB', x: 1.55 * W, y: -0.6 * Hh, t0: 2020, dur: 580, ph: 2.6, stars: true }
+    ];
+    d.forEach(function (c) { c.r0 = c === d[0] ? g.width * 0.45 : near(c.x, c.y); c.r1 = far(c.x, c.y); });
+    var el = document.createElement('div');
+    el.className = 'arcs'; el.setAttribute('aria-hidden', 'true');
+    var svg = '<svg class="arc-rings" width="' + W + '" height="' + Hh + '">';
+    d.forEach(function (c, n) {
+      svg += '<circle class="rg' + n + 'a" fill="none" stroke="' + c.ring + '" stroke-width="2" cx="' + c.x + '" cy="' + c.y + '" r="0" opacity="0"/>';
+    });
+    svg += '</svg>';
+    var html = '';
+    d.forEach(function (c, n) {
+      html += '<div class="arc arc' + n + '" style="background:' + c.col + '"><div class="arc-grain"></div>';
+      if (c.stars) {
+        html += '<svg class="arc-stars" width="' + W + '" height="' + Hh + '">';
+        for (var k = 0; k < 18; k++) {
+          var sz = 7 + Math.random() * 12;
+          html += '<path d="' + STAR + '" fill="#F3E7DA" style="animation-delay:' + (-Math.random() * 2).toFixed(2) + 's" transform="translate(' + (Math.random() * W).toFixed(0) + ' ' + (Math.random() * Hh).toFixed(0) + ') scale(' + sz.toFixed(1) + ')"/>';
+        }
+        html += '</svg>';
+      }
+      html += '</div>';
+    });
+    el.innerHTML = html + svg;
+    document.body.appendChild(el);
+    P.arcLayer = el; P.arcD = d;
+  }
+  function disc(c, r, t) {
+    var pts = [], N = 96, amp = Math.min(R * 0.55, r * 0.02);
+    for (var k = 0; k < N; k++) {
+      var a = k / N * Math.PI * 2, rr = r + amp * (Math.sin(a * 14 + t * 0.006 + c.ph) + 0.6 * Math.sin(a * 23 - t * 0.009));
+      pts.push((c.x + rr * Math.cos(a)).toFixed(1) + 'px ' + (c.y + rr * Math.sin(a)).toFixed(1) + 'px');
+    }
+    return 'polygon(' + pts.join(',') + ')';
+  }
+  function runArcs(P, t, now) {
+    if (t < 1150) return;
+    if (!P.arcLayer) makeArcs(P);
+    var L = P.arcLayer, done = true;
+    P.arcD.forEach(function (c, n) {
+      var k = clamp01((t - c.t0) / c.dur);
+      if (k < 1) done = false;
+      var e = n === 0 ? 1 - Math.pow(1 - k, 2.2) : 1 - Math.pow(1 - k, 3);
+      var r = lerp(c.r0, c.r1, e);
+      var lay = L.querySelector('.arc' + n);
+      lay.style.clipPath = k <= 0 ? 'circle(0 at 0 0)' : disc(c, r, t);
+      var ring = L.querySelector('.rg' + n + 'a');
+      ring.setAttribute('r', (r + R * 2.4).toFixed(1));
+      ring.setAttribute('opacity', (k <= 0 ? 0 : 0.85 * (1 - clamp01((k - 0.7) / 0.3))).toFixed(2));
+    });
+    // fully covered: move the page to the menu underneath, hold a breath, then let the drink clear
+    if (t > 2620 && !P.handed) {
+      P.handed = true;
+      if (P.glass) { P.glass.remove(); P.glass = null; }
+      setPool({ dur: 0, top: 0 }); scrollTo(0, P.poolTop);
+    }
+    if (t > 2800) {
+      if (!P.shown) { P.shown = true; showContent(true); }
+      L.style.opacity = (1 - clamp01((t - 2800) / 380)).toFixed(3);
+    }
+  }
+
+  // ---------- The whole screen as a glass ----------
+  function makeSea(i) {
+    var sw = document.querySelector('.stage-wrap'), r = sw.getBoundingClientRect();
+    var s = document.createElement('div');
+    s.className = 'sea'; s.setAttribute('aria-hidden', 'true');
+    s.innerHTML = '<div class="sea-next"></div><div class="sea-in"><div class="refr"><div class="sea-clone"></div></div><div class="tint"></div><div class="bubbles"></div></div>' +
+      '<svg class="sea-line" viewBox="0 0 1000 1000" preserveAspectRatio="none"><path class="hl1"/><path class="hl2"/></svg>';
+    var holder = s.querySelector('.sea-clone'), copy = sw.cloneNode(true);
+    copy.querySelectorAll('[id]').forEach(function (e) { e.removeAttribute('id'); });
+    holder.style.cssText = 'left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px';
+    holder.appendChild(copy);
+    s.querySelector(':scope > .sea-in > .tint').style.background = LIQ[i];
+    var next = pool.cloneNode(true);
+    next.querySelectorAll('[id]').forEach(function (e) { e.removeAttribute('id'); });
+    next.querySelectorAll('.pool-content, [class*="content"]').forEach(function (e) { e.style.transition = 'none'; e.style.opacity = 1; e.style.transform = 'none'; });
+    next.style.transition = 'none';
+    s.querySelector(':scope > .sea-next').appendChild(next);
+    var bb = s.querySelector(':scope > .sea-in > .bubbles');
+    for (var n = 0; n < 34; n++) {
+      var b = document.createElement('i'), sz = 5 + Math.random() * 11;
+      b.style.cssText = 'left:' + (2 + Math.random() * 96) + '%;width:' + sz + 'px;height:' + sz + 'px;animation-delay:' + (-Math.random() * 3).toFixed(2) + 's;animation-duration:' + (2.2 + Math.random() * 2).toFixed(2) + 's';
+      bb.appendChild(b);
+    }
+    document.body.appendChild(s);
+    return s;
+  }
+  function drawSea(P, t, lv, A, k) {
+    var N = 90, top = [], bot = [], band = 0.16 + 0.04 * Math.sin(t * 0.002);
+    if (!P.fingers) {                     // where the ink-bleed fingers reach up into the drink
+      P.fingers = [];
+      for (var f = 0; f < 14; f++) P.fingers.push({ x: Math.random(), w: 0.006 + Math.random() * 0.018, h: 0.02 + Math.random() * 0.07, ph: Math.random() * 6 });
+    }
+    for (var n = 0; n <= N; n++) {
+      var x = n / N;
+      top.push([x, lv + A * (0.6 * Math.sin(x * 11 + t * 0.005) + 0.4 * Math.sin(x * 27 - t * 0.008))]);
+      var e = lv + band + 0.018 * Math.sin(x * 7 + t * 0.003) + 0.01 * Math.sin(x * 23 - t * 0.005) + 0.005 * Math.sin(x * 61 + t * 0.009);
+      P.fingers.forEach(function (fg) { var d = (x - fg.x) / fg.w; e -= fg.h * (0.7 + 0.3 * Math.sin(t * 0.004 + fg.ph)) * Math.exp(-d * d); });
+      bot.push([x, e]);
+    }
+    var pc = function (p) { return (p[0] * 100).toFixed(2) + '% ' + (p[1] * 100).toFixed(2) + '%'; };
+    // the band of drink: from the surface down to the bleed edge
+    P.sea.querySelector(':scope > .sea-in').style.clipPath = 'polygon(' + top.map(pc).concat(bot.slice().reverse().map(pc)).join(',') + ')';
+    // the menu page: everything below the bleed edge
+    P.sea.querySelector(':scope > .sea-next').style.clipPath = 'polygon(' + bot.map(pc).join(',') + ',100% 110%,0% 110%)';
+    var hl = top.map(function (p) { return (p[0] * 1000).toFixed(1) + ' ' + ((p[1] + 0.006) * 1000).toFixed(1); });
+    P.sea.querySelector(':scope > .sea-line .hl1').setAttribute('d', 'M' + hl.join(' L'));
+    var hl2 = top.slice(18, 50).map(function (p) { return (p[0] * 1000).toFixed(1) + ' ' + ((p[1] + 0.03) * 1000).toFixed(1); });
+    P.sea.querySelector(':scope > .sea-line .hl2').setAttribute('d', 'M' + hl2.join(' L'));
+  }
+
   // ---------- The pour ----------
   function pour(i) {
     if (busy) return;
@@ -326,29 +415,13 @@
     }
     setPool({ dur: 0, top: 100 });
     var G = geo(i);
-    P = { t0: performance.now(), g: G, color: LIQ[i], y0: scrollY,
+    P = { t0: performance.now(), i: i, g: G, color: LIQ[i], y0: scrollY,
           poolTop: pool.getBoundingClientRect().top + scrollY,
-          film: [], drips: [], lv: 1.02 };
+          film: [], drips: [], lv: 1.02, arcs: i === 1 };
     P.glass = makeGlass(i);
     P.glassBox = P.glass.getBoundingClientRect();
     P.glassHalf = P.glassBox.width / 2;
     wdisp.setAttribute('scale', (R * 1.3).toFixed(1));
-    dripsG.innerHTML = '';
-    for (var n = 0; n < 9; n++) {
-      var el = document.createElementNS(NS, 'line'), tip = document.createElementNS(NS, 'circle');
-      el.setAttribute('stroke-linecap', 'round');
-      dripsG.appendChild(el); dripsG.appendChild(tip);
-      var big = n % 2 === 0;
-      P.drips.push({ el: el, tip: tip, u: -0.9 + 1.8 * (n + 0.2 + Math.random() * 0.6) / 9, len: big ? 8 + Math.random() * 12 : 2 + Math.random() * 4,
-                     w: big ? 1.3 + Math.random() * 0.8 : 0.9 + Math.random() * 0.7, delay: Math.random() * 600, ph: Math.random() * 6 });
-    }
-    shineG.innerHTML = ''; P.shine = [];
-    [-0.62, -0.18, 0.4, 0.7].forEach(function (u, n) {
-      var el = document.createElementNS(NS, 'path');
-      el.setAttribute('fill', 'none'); el.setAttribute('stroke', '#FBF4E6'); el.setAttribute('stroke-linecap', 'round');
-      el.setAttribute('stroke-opacity', n % 2 ? .22 : .35); el.setAttribute('stroke-width', (R * (n % 2 ? 0.25 : 0.4)).toFixed(1));
-      shineG.appendChild(el); P.shine.push({ el: el, u: u, ph: n * 1.9 });
-    });
     setTimeout(function () { setDrink(i); setPool({ dur: 0, top: 100 }); }, 700);
     run();
   }
