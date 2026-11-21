@@ -604,7 +604,7 @@
   // Scroll: the section pins; each wheel step moves exactly one card (snap B).
   var WK = (function () {
     var CFG = { radius: 0.45, soft: 0.23, bright: 1, room: 0.36, posY: 0.5, vig: 0.78, haze: 0.32, grain: 0.06,
-      dots: 0.37, cell: 12, mouseR: 71, bubbles: 7, waveMs: 1500, band: 0.16, rough: 0.66 };
+      dots: 1, cell: 22, size: 0.49, density: 0.55, jitter: 0.35, mouseR: 80, bubbles: 7, waveMs: 1950, band: 0.16, rough: 0.66 };
     var LIGHTS = ['#c6e89c', '#fddd3a', '#bee4dd', '#f5c7c7', '#ec2c64'];
     var DARKS = ['#50071f', '#002366', '#31231b', '#2d6f8b', '#131313'];
     var CARD = [
@@ -776,11 +776,11 @@
     var SPR = ['mark_dot', 'mark_ring_s', 'mark_ring_l', 'mark_star'].map(function (n) { var im = new Image(); im.src = 'assets/' + n + '.webp'; return im; });
     var TS = null, tsKey = '', dotC = document.createElement('canvas'), dotKey = '';
     function tinted(rgb) {               // pre-scaled, pre-coloured copies, rebuilt only when the light colour or size changes
-      var key = rgb + '|' + CFG.cell + '|' + dpr;
+      var key = rgb + '|' + CFG.cell + '|' + CFG.size + '|' + dpr;
       if (key === tsKey) return TS;
       if (!SPR.every(function (im) { return im.complete && im.naturalWidth; })) return null;
       TS = SPR.map(function (im, n) {
-        var sz = CFG.cell * (n === 0 ? 1.7 : 1.2), px = Math.max(2, Math.round(sz * dpr)), c = document.createElement('canvas');
+        var sz = n === 0 ? CFG.cell * 0.95 : CFG.cell * 1.2 * CFG.size, px = Math.max(2, Math.round(sz * dpr)), c = document.createElement('canvas');
         c.width = c.height = px; var g = c.getContext('2d');
         g.drawImage(im, 0, 0, px, px); g.globalCompositeOperation = 'source-in'; g.fillStyle = 'rgb(' + rgb + ')'; g.fillRect(0, 0, px, px);
         return { c: c, s: sz };
@@ -817,7 +817,7 @@
         dotC.width = Math.round(W * dpr); dotC.height = Math.round(H * dpr);
         var dg = dotC.getContext('2d'); dg.setTransform(dpr, 0, 0, dpr, 0, 0);
         for (var j0 = 0; j0 < rows; j0++) for (var i0 = 0; i0 < cols; i0++) {
-          var qx = i0 * C + C / 2, qy = j0 * C + C / 2, L0 = lightAt(qx, qy); if (L0 < 0.04) continue;
+          var qx = i0 * C + C / 2 + (hsh(i0 + 7, j0) - 0.5) * C * CFG.jitter, qy = j0 * C + C / 2 + (hsh(i0, j0 + 9) - 0.5) * C * CFG.jitter, L0 = lightAt(qx, qy); if (L0 < 0.04) continue;
           dg.globalAlpha = CFG.dots * 0.22 * Math.min(1, L0 * 1.25); dg.drawImage(ts[0].c, qx - ts[0].s / 2, qy - ts[0].s / 2, ts[0].s, ts[0].s);
         }
         dotKey = tsKey + '|' + W + 'x' + H;
@@ -829,9 +829,10 @@
         if (mx < -500) { i2 = -1; } else { i1 = Math.max(0, Math.floor((mx - Rm) / C)); i2 = Math.min(cols - 1, Math.ceil((mx + Rm) / C)); j1 = Math.max(0, Math.floor((my - Rm) / C)); j2 = Math.min(rows - 1, Math.ceil((my + Rm) / C)); }
       }
       for (var j = j1; j <= j2; j++) for (var ii = i1; ii <= i2; ii++) {
-        var px = ii * C + C / 2, py = j * C + C / 2, L = lightAt(px, py); if (L < 0.04) continue;
+        var px = ii * C + C / 2 + (hsh(ii + 7, j) - 0.5) * C * CFG.jitter, py = j * C + C / 2 + (hsh(ii, j + 9) - 0.5) * C * CFG.jitter, L = lightAt(px, py); if (L < 0.04) continue;
         var dd = Math.hypot(px - mx, py - my), gg = dd < Rm ? Math.pow(1 - dd / Rm, 1.4) : 0, ag = wave ? field(px, py, now, false)[1] : 0;
         if (gg <= 0 && ag <= 0.01) continue;
+        if (hsh(ii + 3, j + 5) > CFG.density) continue;     // leave gaps: only some cells bloom
         var h = hsh(ii, j), tw = 0.5 + 0.5 * Math.sin(now * 0.003 + h * 40);
         var lv = gg * 3.6 + ag * 2.6 * (0.4 + 0.6 * h) + tw * 0.7;
         var lf = Math.min(1, L * 1.25), al = Math.min(0.6, gg * 0.6 + ag * 0.45) * lf; if (al < 0.01) continue;
