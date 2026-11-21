@@ -4,8 +4,8 @@
 
   // ---------- Content ----------
   var PROJECTS = [
-    { name: 'The Second Chance', kind: 'SOLO · NARRATIVE GAME', note: 'Bitter, served neat — who gets to grant a second chance?', tools: 'RPG Maker · Blender · Unreal · Ai · Ps', img: 'assets/cover-second-chance.webp', desc: '一款关于宽恕的解谜叙事游戏：罪人可以重新开始，可受害者呢？核心理念是，第二次机会应该由受害者决定。', role: '独立完成：策划、关卡、美术、开发' },
     { name: 'The Path of Rose', kind: 'TEAM OF 4 · 3D PUZZLE', note: 'Sweet with thorns — a journey through The Little Prince.', tools: 'Blender · 3D 游戏引擎 · 关卡设计', img: 'assets/cover-path-of-rose.webp', desc: '以《小王子》为蓝本、以“爱的诠释”为主题的 3D 解谜冒险：在房子与花园间寻找玫瑰，穿过魔法传送门解开谜题。', role: '组长 · 第二关关卡设计 · 动画' },
+    { name: 'The Second Chance', kind: 'SOLO · NARRATIVE GAME', note: 'Bitter, served neat — who gets to grant a second chance?', tools: 'RPG Maker · Blender · Unreal · Ai · Ps', img: 'assets/cover-second-chance.webp', desc: '一款关于宽恕的解谜叙事游戏：罪人可以重新开始，可受害者呢？核心理念是，第二次机会应该由受害者决定。', role: '独立完成：策划、关卡、美术、开发' },
     { name: 'Dusk Game', kind: 'GAME DESIGN · 2D', note: 'Smoky, best at dusk — a game of shadows and hide-and-seek.', tools: 'Procreate · Ps · Ae · Unreal', img: 'assets/cover-dusk-game.webp', desc: '从“黄昏不要玩捉迷藏”的民间说法出发，玩家化身影子在废弃工厂里寻找回家的路，核心概念是孤立与联结。', role: '游戏设计 · 故事板 · 序列帧美术' },
     { name: 'Oops! Wrong Choice', kind: 'DUO · INSTALLATION', note: 'Fizzy and unpredictable — every jump leaves a mark.', tools: 'Blender · Python · Arduino · Unreal', img: 'assets/cover-oops.webp', desc: '一件用身体操控的互动游戏装置：你做的每个选择都会在人生上留下印记，映照出你的价值观与身份。', role: '游戏设计 · 场景搭建 · 玩法蓝图 · Arduino 跳跃代码' },
     { name: 'On The Way to Work', kind: 'BOARD GAME · UNESCO', note: 'A strong pick-me-up — a board game about entering the job market.', tools: '卡牌设计 · 规则设计 · 用户研究', img: 'assets/cover-on-the-way.webp', desc: '联合国教科文组织青年教育研究（Centre ART FOR 2023）项目中的桌游，探讨年轻人走向职场的路，获 UNESCO 认证。', role: '游戏设计 · 桌游美术 · 2024 年 5–6 月' }
@@ -605,11 +605,11 @@
   var WK = (function () {
     var CFG = { radius: 0.45, soft: 0.23, bright: 1, room: 0.36, posY: 0.5, vig: 0.78, haze: 0.32, grain: 0.06,
       dots: 0.37, cell: 12, mouseR: 71, bubbles: 7, waveMs: 1500, band: 0.16, rough: 0.66 };
-    var LIGHTS = ['#fddd3a', '#c6e89c', '#bee4dd', '#f5c7c7', '#ec2c64'];
-    var DARKS = ['#002366', '#50071f', '#31231b', '#2d6f8b', '#131313'];
+    var LIGHTS = ['#c6e89c', '#fddd3a', '#bee4dd', '#f5c7c7', '#ec2c64'];
+    var DARKS = ['#50071f', '#002366', '#31231b', '#2d6f8b', '#131313'];
     var CARD = [
-      { short: 'SECOND', ic: 'game', tag: 'GAME', yr: '2024', glass: 'rocks', c: '#C98A3A', tiny: 'SERVED NEAT<br>BITTER · 40%' },
       { short: 'ROSE', ic: 'game', tag: 'GAME', yr: '2024', glass: 'coupe', c: '#D9667A', tiny: 'SWEET<br>WITH THORNS' },
+      { short: 'SECOND', ic: 'game', tag: 'GAME', yr: '2024', glass: 'rocks', c: '#C98A3A', tiny: 'SERVED NEAT<br>BITTER · 40%' },
       { short: 'DUSK', ic: 'game', tag: 'GAME', yr: '2023', glass: 'martini', c: '#8C78B0', tiny: 'SMOKY<br>BEST AT DUSK' },
       { short: 'OOPS!', ic: 'inst', tag: 'INST', yr: '2024', glass: 'highball', c: '#9DB84A', tiny: 'FIZZY<br>UNPREDICTABLE' },
       { short: 'WORK', ic: 'board', tag: 'BOARD', yr: '2024', glass: 'coffee', c: '#A8774F', tiny: 'A STRONG<br>PICK-ME-UP' }
