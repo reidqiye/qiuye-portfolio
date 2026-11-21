@@ -297,11 +297,22 @@
     var svg = '<svg class="arc-rings" width="' + W + '" height="' + Hh + '">';
     d.forEach(function (c, n) {
       svg += '<circle class="rg' + n + 'a" fill="none" stroke="' + c.ring + '" stroke-width="2" cx="' + c.x + '" cy="' + c.y + '" r="0" opacity="0"/>';
+      svg += '<circle class="rg' + n + 'b" fill="none" stroke="' + c.ring + '" stroke-width="1" cx="' + c.x + '" cy="' + c.y + '" r="0" opacity="0"/>';
+      c.dots = [];
+      for (var q = 0; q < 3; q++) { c.dots.push({ a: Math.random() * Math.PI * 2, off: R * (3 + Math.random() * 5), sz: R * (0.35 + Math.random() * 0.5) });
+        svg += '<circle class="dt' + n + '_' + q + '" fill="' + (n === 2 ? '#DA6F41' : c.col) + '" r="0"/>'; }
     });
     svg += '</svg>';
     var html = '';
+    // what rides inside each layer: the giant word (a different colour per layer), the bartender, small labels
+    var big = [['WORKS', '#DA6F41'], ['WORKS', '#E9E7DB'], ["TONIGHT'S MENU", '#272523']];
+    var lab = [['No.01 — 05', 'POUR 01 / 03'], ['SHAKEN, NOT STIRRED', 'POUR 02 / 03'], ["TONIGHT'S POUR", 'SERVED COLD · 5 SIGNATURES']];
     d.forEach(function (c, n) {
       html += '<div class="arc arc' + n + '" style="background:' + c.col + '"><div class="arc-grain"></div>';
+      html += '<div class="arc-word aw' + n + '" style="color:' + big[n][1] + '">' + big[n][0] + '</div>';
+      if (n === 1) html += '<div class="arc-sil"></div>';
+      html += '<div class="arc-lab al-a" style="color:' + (n === 0 ? '#272523' : '#E9E7DB') + '">' + lab[n][0] + '</div>';
+      html += '<div class="arc-lab al-b" style="color:' + (n === 0 ? '#272523' : '#E9E7DB') + '">' + lab[n][1] + '</div>';
       if (c.stars) {
         html += '<svg class="arc-stars" width="' + W + '" height="' + Hh + '">';
         for (var k = 0; k < 18; k++) {
@@ -334,10 +345,29 @@
       var e = n === 0 ? 1 - Math.pow(1 - k, 2.2) : 1 - Math.pow(1 - k, 3);
       var r = lerp(c.r0, c.r1, e);
       var lay = L.querySelector('.arc' + n);
+      if (c.full) { var wf = L.querySelector('.aw' + n); if (wf) wf.style.transform = 'translate(' + ((n % 2 ? 1 : -1) * (12 - 24 * clamp01((t - c.t0) / 1400))).toFixed(2) + 'vw, -50%)'; return; }
+      if (k >= 1) {                       // it covers the screen: stop redrawing it, and drop the layers under it
+        c.full = true; lay.style.clipPath = 'none'; lay.style.willChange = 'auto';
+        for (var m = 0; m < n; m++) { var u = L.querySelector('.arc' + m); if (u) u.remove(); P.arcD[m].full = true; }
+        L.querySelectorAll('[class^="rg"], [class^="dt"]').forEach(function (e) { e.setAttribute('opacity', 0); });
+        return;
+      }
       lay.style.clipPath = k <= 0 ? 'circle(0 at 0 0)' : disc(c, r, t);
-      var ring = L.querySelector('.rg' + n + 'a');
-      ring.setAttribute('r', (r + R * 2.4).toFixed(1));
-      ring.setAttribute('opacity', (k <= 0 ? 0 : 0.85 * (1 - clamp01((k - 0.7) / 0.3))).toFixed(2));
+      var ring = L.querySelector('.rg' + n + 'a'), ring2 = L.querySelector('.rg' + n + 'b'), op = k <= 0 ? 0 : 0.85 * (1 - clamp01((k - 0.7) / 0.3));
+      ring.setAttribute('r', (r + R * 2.4).toFixed(1)); ring.setAttribute('opacity', op.toFixed(2));
+      ring2.setAttribute('r', (r + R * (5.5 + 2 * e)).toFixed(1)); ring2.setAttribute('opacity', (op * 0.6).toFixed(2));
+      // a few drops riding just outside the edge, aimed at the screen centre
+      var ca = Math.atan2(innerHeight / 2 - c.y, innerWidth / 2 - c.x);
+      c.dots.forEach(function (dp, q) {
+        var el2 = L.querySelector('.dt' + n + '_' + q), a = ca + (dp.a - Math.PI) * 0.25, rr = r + dp.off;
+        el2.setAttribute('cx', (c.x + rr * Math.cos(a)).toFixed(1)); el2.setAttribute('cy', (c.y + rr * Math.sin(a)).toFixed(1));
+        el2.setAttribute('r', (k <= 0 ? 0 : dp.sz * (1 - k * 0.6)).toFixed(1));
+      });
+      // the giant word drifts across while its layer is on screen
+      var w = L.querySelector('.aw' + n);
+      if (w) w.style.transform = 'translate(' + ((n % 2 ? 1 : -1) * (12 - 24 * clamp01((t - c.t0) / 1400))).toFixed(2) + 'vw, -50%)';
+      var sil = n === 1 && L.querySelector('.arc-sil');
+      if (sil) sil.style.transform = 'translate(' + (-4 * clamp01((t - c.t0) / 1200)).toFixed(2) + 'vw, 0) scale(' + (1 + 0.06 * clamp01((t - c.t0) / 1200)).toFixed(3) + ')';
     });
     // fully covered: move the page to the menu underneath, hold a breath, then let the drink clear
     if (t > 2620 && !P.handed) {
