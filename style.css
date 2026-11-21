@@ -28,7 +28,7 @@ img { display: block; }
   --ah: clamp(calc(var(--sw) * .1), calc(100vh - var(--sw) * 1848 / 4087), calc(var(--sw) * 1097 / 4087));
   --cut: calc(var(--sw) * 1097 / 4087 - var(--ah)); }
 .stage-wrap { position: relative; overflow: hidden; background: #E8E6DB; height: calc(var(--sw) * 2945 / 4087 - var(--cut)); } /* ends at the bottom of the cream step */
-.stage { position: absolute; top: calc(-1 * var(--cut)); left: 50%; width: calc(var(--sw) * 7363 / 4087); height: calc(var(--sw) * 3079 / 4087); transform: translateX(-50%); background: url(assets/stage_bg.webp?v=34) center top / 100% 100% no-repeat; }
+.stage { position: absolute; top: calc(-1 * var(--cut)); left: 50%; width: calc(var(--sw) * 7363 / 4087); height: calc(var(--sw) * 3079 / 4087); transform: translateX(-50%); background: url(assets/stage_bg.webp?v=35) center top / 100% 100% no-repeat; }
 .scene { position: absolute; left: 50%; top: var(--ah); width: var(--sw); aspect-ratio: 4320 / 2040; transform: translateX(-50%); 
   /* soften the scene's outer edges into your drawn wall and floor */
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 1.4%, #000 98.6%, transparent 100%), linear-gradient(to bottom, #000 95.5%, transparent 100%);
@@ -214,7 +214,7 @@ footer { display: flex; justify-content: space-between; align-items: center; gap
 @keyframes twinkleStar { 0%, 100% { opacity: .9; } 50% { opacity: .25; } }
 
 .arc-word { position: absolute; left: 50%; top: 50%; margin-left: -50vw; width: 100vw; text-align: center; white-space: nowrap; font-family: 'Anton', sans-serif; font-size: 27vw; line-height: 1; letter-spacing: -.01em; transform: translate(-12vw, -50%); }
-.aw1 { font-size: 29vw; line-height: .82; }
+.aw1 { font-size: 29vw; line-height: .82; left: auto; right: -2.5vw; margin-left: 0; width: auto; text-align: right; }
 .arc-lab { position: absolute; font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .22em; text-transform: uppercase; opacity: .85; }
 .al-a { left: 32px; top: 28px; }
 .al-b { right: 32px; bottom: 28px; }

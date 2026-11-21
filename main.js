@@ -340,7 +340,7 @@
     // the figure stays still; the shaker gives two easy shakes, and each one sends out a thin ring
     var sh = sil.querySelector('.sil-shaker'), cyc = 520, n = Math.floor(ts / cyc), u = (ts % cyc) / cyc;
     var sw = n < 2 ? Math.sin(u * Math.PI * 2) * (1 - u * 0.3) : 0;
-    sh.style.transform = 'translate(0, ' + (-sw * 3).toFixed(2) + '%) rotate(' + (sw * 7).toFixed(2) + 'deg)';
+    sh.style.transform = 'rotate(' + (sw * 14).toFixed(2) + 'deg)';
     sil.querySelectorAll('.sil-waves circle').forEach(function (ci, q) {
       var ph = (ts - q * cyc) / 900;
       if (ph < 0 || ph > 1 || q > 1) { ci.setAttribute('opacity', 0); return; }
@@ -357,7 +357,7 @@
       var e = n === 0 ? 1 - Math.pow(1 - k, 2.2) : 1 - Math.pow(1 - k, 3);
       var r = lerp(c.r0, c.r1, e);
       var lay = L.querySelector('.arc' + n);
-      if (c.full) { if (n === 0) shakeSil(L, t - c.t0); var wf = L.querySelector('.aw' + n); if (wf) wf.style.transform = 'translate(' + ((n % 2 ? -1 : 1) * (10 - 20 * clamp01((t - c.t0) / 1100))).toFixed(2) + 'vw, -50%)'; return; }
+      if (c.full) { if (n === 0) shakeSil(L, t - c.t0); var wf = L.querySelector('.aw' + n); if (wf) wf.style.transform = n === 1 ? 'translate(' + (6 * (1 - ease(clamp01((t - c.t0) / 700)))).toFixed(2) + 'vw, -50%)' : 'translate(' + (10 - 20 * clamp01((t - c.t0) / 1100)).toFixed(2) + 'vw, -50%)'; return; }
       if (k >= 1) {                       // it covers the screen: stop redrawing it, and drop the layers under it
         c.full = true; lay.style.clipPath = 'none'; lay.style.willChange = 'auto';
         for (var m = 0; m < n; m++) { var u = L.querySelector('.arc' + m); if (u) u.remove(); P.arcD[m].full = true; }
@@ -377,7 +377,7 @@
       });
       // the giant word drifts across while its layer is on screen
       var w = L.querySelector('.aw' + n);
-      if (w) w.style.transform = 'translate(' + ((n % 2 ? -1 : 1) * (10 - 20 * clamp01((t - c.t0) / 1100))).toFixed(2) + 'vw, -50%)';
+      if (w) w.style.transform = n === 1 ? 'translate(' + (6 * (1 - ease(clamp01((t - c.t0) / 700)))).toFixed(2) + 'vw, -50%)' : 'translate(' + (10 - 20 * clamp01((t - c.t0) / 1100)).toFixed(2) + 'vw, -50%)';
       if (n === 0) shakeSil(L, t - c.t0);
     });
     // fully covered: move the page to the menu underneath, hold a breath, then let the drink clear
