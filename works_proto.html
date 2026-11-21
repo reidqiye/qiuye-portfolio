@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Works · Tonight's Menu (prototype)</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;1,500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#DA6F41;--ink:#272523;--cream:#E9E7DB;--paper:#EFEADC}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);transition:background-color .8s ease;font-family:'Barlow Condensed',sans-serif;color:var(--cream);user-select:none}
+/* page grain */
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.18;mix-blend-mode:multiply;
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+.top{position:fixed;left:32px;right:32px;top:26px;display:flex;justify-content:space-between;font-weight:600;font-size:13px;letter-spacing:.22em;z-index:5}
+.top b{font-family:Anton;font-weight:400;font-size:28px;letter-spacing:.02em}
+.ghost{position:fixed;right:2vw;bottom:-7vw;font-family:Anton;font-size:34vw;line-height:1;color:transparent;-webkit-text-stroke:2px rgba(233,231,219,.15);pointer-events:none;transition:opacity .4s}
+.bigname{position:fixed;left:32px;top:72px;font-family:Anton;font-size:7.4vw;line-height:.9;color:rgba(39,37,35,.16);pointer-events:none;white-space:nowrap}
+
+.stage{position:fixed;inset:0;display:flex;align-items:center;cursor:grab}
+.stage.drag{cursor:grabbing}
+.track{position:absolute;left:50%;top:50%;height:0;transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.track.nodur{transition:none}
+
+.card{--c:#C98A3A;position:absolute;width:var(--cw);height:calc(var(--cw)*1.38);left:calc(var(--i)*var(--gap) - var(--cw)/2);top:calc(var(--cw)*-.69);
+ transition:transform .8s cubic-bezier(.2,.8,.2,1),filter .8s,opacity .8s;transform:scale(.74) rotate(var(--rot));filter:saturate(.55) brightness(.92);opacity:.85}
+.card.on{transform:scale(1) rotate(-1.5deg);filter:none;opacity:1;z-index:3}
+:root{--cw:min(390px,30vw,44vh);--gap:calc(var(--cw)*.98)}
+
+.paper{position:absolute;inset:0;background:var(--paper);overflow:hidden;box-shadow:0 18px 40px rgba(20,10,5,.28);
+ clip-path:polygon(0 1.2%,4% 0,30% .8%,55% 0,80% .9%,100% 0,99.4% 30%,100% 62%,99.2% 100%,70% 99.3%,40% 100%,12% 99.2%,0 100%,.7% 70%,0 40%)}
+.paper:after{content:"";position:absolute;inset:0;opacity:.35;mix-blend-mode:multiply;
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.75' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .45 0 0 0 0 .4 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E")}
+/* collage shapes */
+.sun{position:absolute;width:72%;aspect-ratio:1;border-radius:50%;background:var(--c);left:32%;top:2%}
+.ring{position:absolute;width:92%;aspect-ratio:1;border-radius:50%;border:1.5px solid var(--ink);left:20%;top:-2%;opacity:.6}
+.ring.s{width:30%;left:6%;top:44%;border-style:dashed;opacity:.5}
+.block{position:absolute;width:40%;height:24%;background:var(--ink);left:-5%;top:2%;transform:rotate(-5deg)}
+.dots{position:absolute;width:46%;height:18%;left:50%;top:40%;opacity:.45;background-image:radial-gradient(var(--ink) 1.1px,transparent 1.3px);background-size:7px 7px}
+.stripe{position:absolute;left:0;right:0;top:58%;height:5%;background:repeating-linear-gradient(-45deg,var(--ink) 0 6px,transparent 6px 12px);opacity:.85}
+.drink{position:absolute;width:56%;left:33%;top:3%;filter:drop-shadow(4px 6px 0 rgba(39,37,35,.25))}
+.ph{position:absolute;left:47%;top:1.6%;font-size:9px;letter-spacing:.16em;color:var(--ink);opacity:.55;font-weight:600}
+/* text */
+.no{position:absolute;left:6%;top:6%;font-family:Anton;font-size:calc(var(--cw)*.15);color:var(--paper);line-height:1;z-index:2;mix-blend-mode:normal}
+.no small{display:block;font-family:'Barlow Condensed';font-weight:700;font-size:10px;letter-spacing:.24em;margin-top:4px}
+.vert{position:absolute;right:4%;top:6%;writing-mode:vertical-rl;font-weight:700;font-size:10px;letter-spacing:.3em;color:var(--ink)}
+.photo{position:absolute;width:42%;left:5%;top:31%;background:#fff;padding:4px 4px 14px;transform:rotate(-7deg);box-shadow:2px 4px 8px rgba(0,0,0,.25)}
+.photo img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
+.tape{position:absolute;width:34%;height:10%;left:30%;top:-6%;background:rgba(233,214,160,.75);transform:rotate(4deg)}
+.info{position:absolute;left:7%;right:7%;bottom:5%;color:var(--ink)}
+.kind{font-weight:700;font-size:10px;letter-spacing:.22em;background:var(--ink);color:var(--paper);display:inline-block;padding:2px 6px}
+.name{font-family:Anton;font-size:calc(var(--cw)*.105);line-height:.95;margin:6px 0 4px;text-transform:uppercase}
+.note{font-style:italic;font-weight:500;font-size:12.5px;line-height:1.2;opacity:.8;max-width:78%}
+.rec{display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px;border-top:1.5px solid var(--ink);padding-top:6px;gap:10px}
+.rec span{font-weight:600;font-size:10.5px;letter-spacing:.08em;line-height:1.3}
+.rec span i{display:block;font-style:normal;font-weight:700;letter-spacing:.22em;font-size:9px;opacity:.6}
+.bar{height:22px;width:62px;flex:none;background:repeating-linear-gradient(90deg,var(--ink) 0 1px,transparent 1px 3px,var(--ink) 3px 5px,transparent 5px 6px,var(--ink) 6px 7px,transparent 7px 10px)}
+.star{position:absolute;right:5%;top:30%;width:13%;color:var(--paper);filter:drop-shadow(1px 2px 0 var(--ink))}
+.stamp{position:absolute;right:6%;top:46%;width:17%;aspect-ratio:1;border:2px solid var(--c);border-radius:50%;display:grid;place-items:center;transform:rotate(14deg);
+ font-family:Anton;font-size:11px;color:var(--c);text-align:center;line-height:1;filter:brightness(.8)}
+
+.foot{position:fixed;left:32px;right:32px;bottom:26px;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:12px;letter-spacing:.22em;z-index:5}
+.pips{display:flex;gap:8px}.pips i{width:22px;height:3px;background:var(--cream);opacity:.35;transition:opacity .4s,width .4s}.pips i.on{opacity:1;width:44px}
+.arrow{position:fixed;top:50%;z-index:6;width:46px;height:46px;border-radius:50%;border:1.5px solid var(--cream);background:none;color:var(--cream);font-size:18px;cursor:pointer;transform:translateY(-50%)}
+.arrow.l{left:28px}.arrow.r{right:28px}
+</style>
+</head>
+<body>
+<div class="bigname" id="bigname"></div>
+<div class="ghost" id="ghost">01</div>
+<div class="top"><span><b>TONIGHT'S MENU</b></span><span id="count">01 / 05</span></div>
+<div class="stage" id="stage"><div class="track" id="track"></div></div>
+<button class="arrow l" id="prev">←</button><button class="arrow r" id="next">→</button>
+<div class="foot"><span>DRAG · SCROLL · ← →</span><div class="pips" id="pips"></div><span>SERVED COLD · 5 SIGNATURES</span></div>
+
+<script>
+var P=[
+ {name:'The Second Chance',kind:'SOLO · NARRATIVE GAME',note:'Bitter, served neat — who gets to grant a second chance?',tools:'RPG Maker · Blender · Unreal',img:'assets/cover-second-chance.webp',c:'#C98A3A',bg:'#8E5A2B',glass:'rocks',yr:'2024'},
+ {name:'The Path of Rose',kind:'TEAM OF 4 · 3D PUZZLE',note:'Sweet with thorns — a journey through The Little Prince.',tools:'Blender · 3D Engine · Level',img:'assets/cover-path-of-rose.webp',c:'#D9667A',bg:'#A94456',glass:'coupe',yr:'2024'},
+ {name:'Dusk Game',kind:'GAME DESIGN · 2D',note:'Smoky, best at dusk — a game of shadows and hide-and-seek.',tools:'Procreate · Ps · Ae · Unreal',img:'assets/cover-dusk-game.webp',c:'#8C78B0',bg:'#4F4468',glass:'martini',yr:'2023'},
+ {name:'Oops! Wrong Choice',kind:'DUO · INSTALLATION',note:'Fizzy and unpredictable — every jump leaves a mark.',tools:'Blender · Python · Arduino',img:'assets/cover-oops.webp',c:'#B7CF5A',bg:'#6F8A3A',glass:'highball',yr:'2024'},
+ {name:'On The Way to Work',kind:'BOARD GAME · UNESCO',note:'A strong pick-me-up — a board game about entering the job market.',tools:'Cards · Rules · User Research',img:'assets/cover-on-the-way.webp',c:'#A8774F',bg:'#5C4130',glass:'coffee',yr:'2024'}
+];
+// placeholder glasses (to be replaced by hand-drawn drinks)
+function glass(t,c){
+ var I='#272523',L='fill="'+c+'"',S='stroke="'+I+'" stroke-width="3" fill="none" stroke-linejoin="round"';
+ var g={
+  rocks:'<path d="M30 70 L36 160 H124 L130 70Z" fill="#F7F3E8" opacity=".7"/><path d="M33 105 L36 160 H124 L127 105Z" '+L+'/><rect x="58" y="92" width="28" height="26" rx="4" fill="#fff" opacity=".6" transform="rotate(12 72 105)"/><path d="M30 70 L36 160 H124 L130 70Z" '+S+'/>',
+  coupe:'<path d="M20 70 Q80 140 140 70Z" '+L+'/><path d="M20 70 Q80 140 140 70" '+S+'/><path d="M80 105 V165 M55 168 H105" '+S+'/><circle cx="118" cy="62" r="9" fill="#C93A4C" stroke="'+I+'" stroke-width="3"/>',
+  martini:'<path d="M18 60 L80 120 L142 60Z" fill="#F7F3E8" opacity=".7"/><path d="M34 76 L80 120 L126 76Z" '+L+'/><path d="M18 60 L80 120 L142 60Z M80 120 V168 M56 170 H104" '+S+'/><circle cx="95" cy="82" r="7" fill="#7FA585" stroke="'+I+'" stroke-width="2.5"/><path d="M60 50 L100 92" '+S+'/>',
+  highball:'<rect x="46" y="30" width="68" height="138" rx="3" fill="#F7F3E8" opacity=".7"/><rect x="46" y="62" width="68" height="106" '+L+'/><circle cx="62" cy="120" r="3" fill="#fff"/><circle cx="90" cy="100" r="4" fill="#fff"/><circle cx="76" cy="140" r="2.5" fill="#fff"/><rect x="46" y="30" width="68" height="138" rx="3" '+S+'/><path d="M98 10 L84 90" '+S+'/>',
+  coffee:'<path d="M36 80 Q36 166 80 166 Q124 166 124 80Z" '+L+'/><path d="M36 80 Q36 166 80 166 Q124 166 124 80Z M124 96 Q146 98 140 120 Q136 134 120 132" '+S+'/><path d="M60 64 Q52 48 62 36 M84 64 Q76 48 86 36" '+S+' opacity=".6"/><ellipse cx="80" cy="80" rx="44" ry="7" fill="#E9D9BC" stroke="'+I+'" stroke-width="3"/>'
+ };
+ return '<svg class="drink" viewBox="0 0 160 180">'+g[t]+'</svg>';
+}
+var STAR='<svg viewBox="0 0 24 24"><path fill="currentColor" stroke="#272523" stroke-width="1.2" d="M12 1 14.6 9.4 23 12 14.6 14.6 12 23 9.4 14.6 1 12 9.4 9.4Z"/></svg>';
+var track=document.getElementById('track'),pips=document.getElementById('pips');
+P.forEach(function(p,i){
+ var d=document.createElement('div');d.className='card';d.style.setProperty('--i',i);d.style.setProperty('--c',p.c);d.style.setProperty('--rot',(i%2?3.5:-4)+'deg');
+ d.innerHTML='<div class="paper"><div class="ring"></div><div class="sun"></div><div class="block"></div><div class="ring s"></div><div class="dots"></div>'+
+  glass(p.glass,p.c)+'<div class="ph">DRINK ART · 手绘占位</div>'+
+  '<div class="no">No.0'+(i+1)+'<small>SIGNATURE</small></div><div class="vert">QIUYE BAR · '+p.yr+' · POUR 0'+(i+1)+'</div>'+
+  '<div class="photo"><div class="tape"></div><img src="'+p.img+'" draggable="false"></div><div class="star">'+STAR+'</div>'+
+  '<div class="stamp">'+p.yr+'<br>★</div>'+
+  '<div class="info"><span class="kind">'+p.kind+'</span><div class="name">'+p.name+'</div><div class="note">'+p.note+'</div>'+
+  '<div class="rec"><span><i>RECIPE</i>'+p.tools+'</span><div class="bar"></div></div></div></div>';
+ d.onclick=function(){if(!moved)go(i)};
+ track.appendChild(d);pips.appendChild(document.createElement('i'));
+});
+var cards=track.children,cur=0,moved=false;
+function gap(){return cards[0].getBoundingClientRect?parseFloat(getComputedStyle(cards[0]).width)/ (cards[0].classList.contains('on')?1:1)*0.98:0}
+function go(i,off){
+ cur=Math.max(0,Math.min(P.length-1,i));
+ var g=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cw'))||0;
+ var cw=cards[0].offsetWidth, x=-(cur*cw*.98)+(off||0);
+ track.style.transform='translateX('+x+'px)';
+ for(var k=0;k<cards.length;k++){cards[k].classList.toggle('on',k===cur);pips.children[k].classList.toggle('on',k===cur)}
+ document.body.style.setProperty('--bg',P[cur].bg);
+ document.getElementById('count').textContent='0'+(cur+1)+' / 05';
+ document.getElementById('ghost').textContent='0'+(cur+1);
+ document.getElementById('bigname').textContent=P[cur].name.toUpperCase();
+}
+document.getElementById('prev').onclick=function(){go(cur-1)};
+document.getElementById('next').onclick=function(){go(cur+1)};
+addEventListener('keydown',function(e){if(e.key=='ArrowRight')go(cur+1);if(e.key=='ArrowLeft')go(cur-1)});
+var acc=0,lock=0;
+addEventListener('wheel',function(e){e.preventDefault();var now=Date.now();if(now<lock)return;acc+=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY;
+ if(Math.abs(acc)>40){go(cur+(acc>0?1:-1));acc=0;lock=now+650}},{passive:false});
+var st=document.getElementById('stage'),sx=null;
+st.addEventListener('pointerdown',function(e){sx=e.clientX;moved=false;track.classList.add('nodur');st.classList.add('drag')});
+addEventListener('pointermove',function(e){if(sx===null)return;var dx=e.clientX-sx;if(Math.abs(dx)>6)moved=true;go(cur,dx)});
+addEventListener('pointerup',function(e){if(sx===null)return;var dx=e.clientX-sx;sx=null;track.classList.remove('nodur');st.classList.remove('drag');
+ var cw=cards[0].offsetWidth;go(cur-Math.round(dx/(cw*.6)))});
+addEventListener('resize',function(){go(cur)});
+go(0);
+</script>
+</body>
+</html>

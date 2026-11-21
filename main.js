@@ -10,7 +10,6 @@
     { name: 'Oops! Wrong Choice', kind: 'DUO · INSTALLATION', note: 'Fizzy and unpredictable — every jump leaves a mark.', tools: 'Blender · Python · Arduino · Unreal', img: 'assets/cover-oops.webp', desc: '一件用身体操控的互动游戏装置：你做的每个选择都会在人生上留下印记，映照出你的价值观与身份。', role: '游戏设计 · 场景搭建 · 玩法蓝图 · Arduino 跳跃代码' },
     { name: 'On The Way to Work', kind: 'BOARD GAME · UNESCO', note: 'A strong pick-me-up — a board game about entering the job market.', tools: '卡牌设计 · 规则设计 · 用户研究', img: 'assets/cover-on-the-way.webp', desc: '联合国教科文组织青年教育研究（Centre ART FOR 2023）项目中的桌游，探讨年轻人走向职场的路，获 UNESCO 认证。', role: '游戏设计 · 桌游美术 · 2024 年 5–6 月' }
   ];
-  var SPECIALS = ['[学校项目 1]', '[学校项目 2]', '[学校项目 3]', '[学校项目 4]', '[学校项目 5]'];
 
   // ---------- Settings (tweak here) ----------
   var LIGHT = 0.7;           // beam strength 0.2–1
@@ -60,6 +59,7 @@
     document.querySelectorAll('.pane').forEach(function (p) { p.hidden = +p.dataset.pane !== i; });
     $('orderTag').textContent = '✦ YOU ORDERED · ' + NAMES[i] + ' ✦';
     pool.setAttribute('aria-label', NAMES[i].toLowerCase());
+    pool.classList.toggle('is-works', i === 1);
     setPool({ liq: LIQ[i] });
   }
 
@@ -161,7 +161,7 @@
         scrollTo(0, P.poolTop);
         if (P.sea) { P.sea.remove(); P.sea = null; }
       }
-      if (t > (P.arcs ? 2760 : 3400)) {
+      if (t > (P.arcs ? SHRINK0 + SHRINK_MS + 80 : 3400)) {
         if (P.arcLayer) { P.arcLayer.remove(); P.arcLayer = null; }
         if (P.sea) { P.sea.remove(); P.sea = null; }
         if (P.glass) { P.glass.remove(); P.glass = null; }
@@ -361,7 +361,7 @@
     }
     ctx.globalAlpha = 1;
   }
-  function paintLayer(ctx, P, n, t, c) {
+  function paintLayer(ctx, P, n, t, c, noText) {
     var W = P.arcW, Hh = P.arcH;
     ctx.fillStyle = c.col; ctx.fillRect(0, 0, W, Hh);
     ctx.fillStyle = P.arcGrain; ctx.fillRect(0, 0, W, Hh);
@@ -375,10 +375,12 @@
       ctx.fillStyle = '#F3E7DA'; ctx.globalAlpha = 0.78 + 0.17 * Math.sin(t * 0.0026);
       P.arcStars.forEach(function (s) { star(ctx, s.x, s.y, s.s); });
       ctx.globalAlpha = 1;
-      var fs2 = W * 0.29, lh = fs2 * 0.82, sl = 6 * (1 - ease(clamp01((t - c.t0) / 700))) * W / 100;
-      ctx.font = fs2.toFixed(1) + 'px Anton, sans-serif'; ctx.fillStyle = '#272523'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-      ctx.fillText("TONIGHT'S", W * 1.025 + sl, Hh / 2 - lh / 2);
-      ctx.fillText('MENU', W * 1.025 + sl, Hh / 2 + lh / 2);
+      if (!noText) {
+        var fs2 = W * 0.29, lh = fs2 * 0.82, sl = 6 * (1 - ease(clamp01((t - c.t0) / 700))) * W / 100;
+        ctx.font = fs2.toFixed(1) + 'px Anton, sans-serif'; ctx.fillStyle = '#272523'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        ctx.fillText("TONIGHT'S", W * 1.025 + sl, Hh / 2 - lh / 2);
+        ctx.fillText('MENU', W * 1.025 + sl, Hh / 2 + lh / 2);
+      }
       label(ctx, "TONIGHT'S POUR", 32, 34, 'left', '#E9E7DB'); label(ctx, 'SERVED COLD · 5 SIGNATURES', W - 32, Hh - 34, 'right', '#E9E7DB');
     }
   }
@@ -389,6 +391,7 @@
     ctx.clearRect(0, 0, W, Hh);
     var top = -1;
     P.arcD.forEach(function (c, n) { if (t >= c.t0 + c.dur) top = n; });
+    if (t > SHRINK0) { shrinkToSpot(P, t); return; }
     P.arcD.forEach(function (c, n) {
       if (n < top) return;                         // fully covered by a later layer
       var k = clamp01((t - c.t0) / c.dur);
@@ -416,12 +419,51 @@
     if (t > 2200 && !P.handed) {
       P.handed = true;
       if (P.glass) { P.glass.remove(); P.glass = null; }
+      var pc = $('poolContent'); pc.style.transition = 'none'; showContent(true);
       setPool({ dur: 0, top: 0 }); scrollTo(0, P.poolTop);
+      WK.enter();
+      setTimeout(function () { pc.style.transition = ''; }, 50);
     }
-    if (t > 2360) {
-      if (!P.shown) { P.shown = true; showContent(true); }
-      P.arcLayer.style.opacity = (1 - clamp01((t - 2360) / 340)).toFixed(3);
-    }
+  }
+
+  // ---------- The orange layer shrinks into the Works spotlight; its title flies to the corner ----------
+  var SHRINK0 = 2380, SHRINK_MS = 1000;
+  function shrinkToSpot(P, t) {
+    var ctx = P.arcCtx, W = P.arcW, Hh = P.arcH, c = P.arcD[1];
+    var k = clamp01((t - SHRINK0) / SHRINK_MS), e = ease(k);
+    var sp = WK.spot(), cx = lerp(W / 2, sp.x, e), cy = lerp(Hh / 2, sp.y, e);
+    var r0 = Math.hypot(W, Hh) / 2 * 1.06, r = lerp(r0, sp.r, e);
+    var soft = clamp01((k - 0.62) / 0.38);                    // the hard edge melts into the lamp
+    var col = mix(c.col, WK.lightCol(), soft);
+    ctx.clearRect(0, 0, W, Hh);
+    ctx.save();
+    ctx.globalAlpha = 1 - soft;
+    wavyCircle(ctx, { x: cx, y: cy, ph: c.ph }, r, t); ctx.clip();
+    paintLayer(ctx, P, 1, t, { col: col, t0: c.t0 }, true);
+    ctx.restore();
+    var op = 0.85 * (1 - soft);                                // the rings ride the edge in
+    ctx.strokeStyle = '#E9E7DB';
+    ctx.globalAlpha = op; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, r + R * 2.4, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = op * 0.6; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, r + R * 6, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
+    // TONIGHT'S / MENU flies to the page title in the top-left corner
+    var f = ease(clamp01((t - SHRINK0) / (SHRINK_MS * 0.8)));
+    var hd = WK.titleBox(), fs0 = W * 0.29, fs1 = hd.h * 0.9;
+    var fs = lerp(fs0, fs1, f), x0 = W * 1.025, y0 = Hh / 2;
+    ctx.font = fs.toFixed(1) + 'px Anton, sans-serif'; ctx.textBaseline = 'middle';
+    var w1 = ctx.measureText("TONIGHT'S").width, w2 = ctx.measureText('MENU').width, sp1 = ctx.measureText(' ').width;
+    // start: two right-aligned lines; end: one line from the title's left edge
+    var lh = fs * 0.82;
+    var aX = lerp(x0 - w1, hd.x, f), aY = lerp(y0 - lh / 2, hd.y, f);
+    var bX = lerp(x0 - w2, hd.x + w1 + sp1, f), bY = lerp(y0 + lh / 2, hd.y, f);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = mix('#272523', '#E9E7DB', clamp01(f * 1.6));
+    var tail = clamp01((t - SHRINK0 - SHRINK_MS * 0.8) / 160);
+    ctx.globalAlpha = 1 - tail;
+    ctx.fillText("TONIGHT'S", aX, aY); ctx.fillText('MENU', bX, bY);
+    ctx.globalAlpha = 1;
+    if (tail > 0 && !P.titleShown) { P.titleShown = true; WK.showTitle(true); }
+    if (k > 0.7 && !P.dropped) { P.dropped = true; WK.drop(); }
   }
 
   // ---------- The whole screen as a glass ----------
@@ -491,6 +533,7 @@
     P = { t0: performance.now(), i: i, g: G, color: LIQ[i], y0: scrollY,
           poolTop: pool.getBoundingClientRect().top + scrollY,
           film: [], drips: [], lv: 1.02, arcs: i === 1 };
+    if (i === 1) WK.prepare();
     P.glass = makeGlass(i);
     P.glassBox = P.glass.getBoundingClientRect();
     P.glassHalf = P.glassBox.width / 2;
@@ -498,36 +541,6 @@
     setTimeout(function () { setDrink(i); setPool({ dur: 0, top: 100 }); }, 700);
     run();
   }
-
-  // ---------- Menu ----------
-  var mi = 0;
-  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  function renderMenu() {
-    $('menuList').innerHTML = PROJECTS.map(function (p, n) {
-      return '<button class="mrow' + (n === mi ? ' on' : '') + '" type="button" data-mi="' + n + '">' +
-        '<span class="num">No.0' + (n + 1) + '</span><span class="dish-col"><span class="dish-line">' +
-        '<span class="dish">' + esc(p.name) + '</span><span class="leader" aria-hidden="true"></span><span class="kind">' + esc(p.kind) + '</span></span>' +
-        '<span class="note">' + esc(p.note) + '</span><span class="tools">配料 · ' + esc(p.tools) + '</span></span></button>';
-    }).join('');
-    $('specialList').innerHTML = SPECIALS.map(function (s, n) {
-      return '<div class="special"><span class="num">No.0' + (n + 6) + '</span><span class="dish-line"><span class="dish">' + esc(s) +
-        '</span><span class="leader" aria-hidden="true"></span><span class="soon">COMING SOON</span></span></div>';
-    }).join('');
-    var p = PROJECTS[mi];
-    $('pvImg').src = p.img; $('pvImg').alt = p.name + ' 封面';
-    $('pvName').textContent = p.name; $('pvDesc').textContent = p.desc; $('pvRole').textContent = '我的角色 · ' + p.role;
-  }
-  function pick(n) {
-    if (n === mi) return;
-    mi = n;
-    document.querySelectorAll('.mrow').forEach(function (r) { r.classList.toggle('on', +r.dataset.mi === mi); });
-    var p = PROJECTS[mi];
-    $('pvImg').src = p.img; $('pvImg').alt = p.name + ' 封面';
-    $('pvName').textContent = p.name; $('pvDesc').textContent = p.desc; $('pvRole').textContent = '我的角色 · ' + p.role;
-  }
-  $('menuList').addEventListener('mouseover', function (e) { var r = e.target.closest('.mrow'); if (r) pick(+r.dataset.mi); });
-  $('menuList').addEventListener('focusin', function (e) { var r = e.target.closest('.mrow'); if (r) pick(+r.dataset.mi); });
-  $('menuList').addEventListener('click', function (e) { var r = e.target.closest('.mrow'); if (r) pick(+r.dataset.mi); });
 
   // ---------- Wiring ----------
   document.querySelectorAll('[data-go]').forEach(function (b) { b.addEventListener('click', function () { pour(+b.dataset.go); }); });
@@ -585,9 +598,256 @@
     } catch (e) {}
   })();
 
+  // ---------- Works: tonight's menu under one spotlight ----------
+  // Background = a grey light map, gradient-mapped per drink (dark colour -> light colour),
+  // plus grain, and a field of tiny marks that only show inside the light.
+  // Scroll: the section pins; each wheel step moves exactly one card (snap B).
+  var WK = (function () {
+    var CFG = { radius: 0.45, soft: 0.23, bright: 1, room: 0.36, posY: 0.5, vig: 0.78, haze: 0.32, grain: 0.06,
+      dots: 0.37, cell: 12, mouseR: 71, bubbles: 7, waveMs: 1500, band: 0.16, rough: 0.66 };
+    var LIGHTS = ['#fddd3a', '#c6e89c', '#bee4dd', '#f5c7c7', '#ec2c64'];
+    var DARKS = ['#002366', '#50071f', '#31231b', '#2d6f8b', '#131313'];
+    var CARD = [
+      { short: 'SECOND', ic: 'game', tag: 'GAME', yr: '2024', glass: 'rocks', c: '#C98A3A', tiny: 'SERVED NEAT<br>BITTER · 40%' },
+      { short: 'ROSE', ic: 'game', tag: 'GAME', yr: '2024', glass: 'coupe', c: '#D9667A', tiny: 'SWEET<br>WITH THORNS' },
+      { short: 'DUSK', ic: 'game', tag: 'GAME', yr: '2023', glass: 'martini', c: '#8C78B0', tiny: 'SMOKY<br>BEST AT DUSK' },
+      { short: 'OOPS!', ic: 'inst', tag: 'INST', yr: '2024', glass: 'highball', c: '#9DB84A', tiny: 'FIZZY<br>UNPREDICTABLE' },
+      { short: 'WORK', ic: 'board', tag: 'BOARD', yr: '2024', glass: 'coffee', c: '#A8774F', tiny: 'A STRONG<br>PICK-ME-UP' }
+    ];
+    var IC = {
+      game: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10v5M4.5 12.5h5"/><circle cx="16" cy="11" r="1" fill="currentColor"/><circle cx="18.5" cy="14" r="1" fill="currentColor"/></svg>',
+      inst: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/><circle cx="12" cy="10" r="2.5"/></svg>',
+      board: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="11" height="15" rx="1.5" transform="rotate(-8 9 10)"/><rect x="9" y="6" width="11" height="15" rx="1.5" transform="rotate(8 15 13)"/></svg>'
+    };
+    function glass(t, c) {
+      var I = '#272523', L = 'fill="' + c + '"', S = 'stroke="' + I + '" stroke-width="3" fill="none" stroke-linejoin="round"';
+      var g = {
+        rocks: '<path d="M30 70 L36 160 H124 L130 70Z" fill="#fff" opacity=".6"/><path d="M33 105 L36 160 H124 L127 105Z" ' + L + '/><rect x="58" y="92" width="28" height="26" rx="4" fill="#fff" opacity=".6" transform="rotate(12 72 105)"/><path d="M30 70 L36 160 H124 L130 70Z" ' + S + '/>',
+        coupe: '<path d="M20 70 Q80 140 140 70Z" ' + L + '/><path d="M20 70 Q80 140 140 70 M80 105 V165 M55 168 H105" ' + S + '/><circle cx="118" cy="62" r="9" fill="#C93A4C" stroke="' + I + '" stroke-width="3"/>',
+        martini: '<path d="M34 76 L80 120 L126 76Z" ' + L + '/><path d="M18 60 L80 120 L142 60Z M80 120 V168 M56 170 H104" ' + S + '/><circle cx="95" cy="82" r="7" fill="#7FA585" stroke="' + I + '" stroke-width="2.5"/>',
+        highball: '<rect x="46" y="62" width="68" height="106" ' + L + '/><circle cx="62" cy="120" r="3" fill="#fff"/><circle cx="90" cy="100" r="4" fill="#fff"/><rect x="46" y="30" width="68" height="138" rx="3" ' + S + '/><path d="M98 10 L84 90" ' + S + '/>',
+        coffee: '<path d="M36 80 Q36 166 80 166 Q124 166 124 80Z" ' + L + '/><path d="M36 80 Q36 166 80 166 Q124 166 124 80Z M124 96 Q146 98 140 120 Q136 134 120 132" ' + S + '/><ellipse cx="80" cy="80" rx="44" ry="7" fill="#E9D9BC" stroke="' + I + '" stroke-width="3"/>'
+      };
+      return '<svg class="pile" viewBox="0 0 160 180" aria-hidden="true">' + g[t] + '</svg>';
+    }
+    var sec = $('works'), pin = $('wPin'), track = $('wTrack'), pips = $('wPips'), cv = $('wBg'), ctx = cv.getContext('2d');
+    var N = PROJECTS.length;
+    track.innerHTML = PROJECTS.map(function (p, i) {
+      var d = CARD[i];
+      return '<div class="wc" data-i="' + i + '" style="--c:' + d.c + ';--dd:' + (i * 90) + 'ms"><div class="wc-in"><div class="wc-fr"><div class="wc-art">' +
+        '<div class="bt back">' + d.short + '</div><div class="mk a"></div><div class="mk b"></div>' + glass(d.glass, d.c) +
+        '<div class="bt front">' + p.name.replace(/^The /, '') + '</div><div class="bt vert">QIUYE BAR · POUR 0' + (i + 1) + ' · ' + d.yr + '</div>' +
+        '<div class="ph">手绘物件堆 · 占位</div></div>' +
+        '<div class="badges"><div class="bd">' + IC[d.ic].replace('<svg', '<svg width="46%" height="46%"') + '<small>' + d.tag + '</small></div><div class="bd">0' + (i + 1) + '<small>POUR</small></div></div>' +
+        '<div class="wc-bar"><h3>' + p.name + '</h3><p>' + p.kind + ' · ' + d.yr + '</p></div>' +
+        '<div class="wc-th"><img src="' + p.img + '" alt="' + p.name + '"></div></div></div></div>';
+    }).join('');
+    pips.innerHTML = PROJECTS.map(function () { return '<i></i>'; }).join('');
+    var cards = track.children;
+
+    // ----- scroll position -> carousel -----
+    var cur = 0, vh = innerHeight;
+    function top0() { return sec.getBoundingClientRect().top + scrollY; }
+    function prog() { return clamp((scrollY - top0()) / vh, 0, N - 1); }
+    function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+    function layout() {
+      if (pool.classList.contains('is-works') === false) return;
+      var p = prog(), cw = cards[0].offsetWidth, gap = cw * 1.08;
+      for (var k = 0; k < N; k++) {
+        var o = k - p, a = Math.min(1, Math.abs(o));
+        cards[k].style.transform = 'translateX(' + (o * gap * (1 - 0.12 * a)).toFixed(1) + 'px) scale(' + (1 - 0.24 * a).toFixed(3) + ') rotate(' + (o * 3.5).toFixed(2) + 'deg)';
+        cards[k].style.zIndex = 10 - Math.round(Math.abs(o) * 2);
+        cards[k].style.filter = 'brightness(' + (1 - 0.35 * a).toFixed(2) + ')';
+      }
+      var n = Math.round(p);
+      if (n !== cur) { startWave(n > cur ? 1 : -1, n); cur = n; }
+      for (var q = 0; q < N; q++) pips.children[q].classList.toggle('on', q === cur);
+      $('wCount').textContent = '0' + (cur + 1) + ' / 0' + N;
+    }
+
+    // ----- snap B: one wheel step = one card -----
+    var anim = null, lockUntil = 0;
+    function glide(to) {
+      var from = scrollY, t0 = performance.now(), dur = calm ? 0 : 620;
+      anim = { to: to };
+      (function step(now) {
+        var k = dur ? Math.min(1, (now - t0) / dur) : 1;
+        scrollTo(0, from + (to - from) * ease(k));
+        if (k < 1 && anim) requestAnimationFrame(step); else { anim = null; lockUntil = performance.now() + 260; }
+      })(t0);
+    }
+    function snapStep(dir) {   // returns true when it handled the step
+      if (busy || !pool.classList.contains('is-works')) return false;
+      var T = top0(), y = scrollY, last = T + (N - 1) * vh;
+      if (dir > 0 && y < T - 2 && y > T - vh * 0.85) { glide(T); return true; }      // arriving from above: land on card 1
+      if (y < T - 2 || y > last + 2) return false;
+      var i = Math.round((y - T) / vh), nx = i + dir;
+      if (nx < 0 || nx > N - 1) return false;                                        // first/last card: let the page move on
+      glide(T + nx * vh); return true;
+    }
+    addEventListener('wheel', function (e) {
+      if (busy) return;
+      var T = top0(), y = scrollY;
+      if (y < T - vh || y > T + (N - 1) * vh + 2) return;
+      var d = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : 0;
+      if (Math.abs(d) < 2) return;
+      if (anim || performance.now() < lockUntil) {
+        if (y >= T - vh * 0.85 && y <= T + (N - 1) * vh + 2) e.preventDefault();
+        return;
+      }
+      if (snapStep(d > 0 ? 1 : -1)) e.preventDefault();
+    }, { passive: false });
+    addEventListener('keydown', function (e) {
+      var k = e.key, dir = (k === 'ArrowDown' || k === 'PageDown' || (k === ' ' && !e.shiftKey)) ? 1 : (k === 'ArrowUp' || k === 'PageUp' || (k === ' ' && e.shiftKey)) ? -1 : 0;
+      if (!dir || anim || /INPUT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) return;
+      if (snapStep(dir)) e.preventDefault();
+    });
+    var settleT = 0;
+    addEventListener('scroll', function () {
+      layout();
+      clearTimeout(settleT);
+      settleT = setTimeout(function () {                       // a drag or a fling that stopped between two cards
+        if (anim || busy || !pool.classList.contains('is-works')) return;
+        var T = top0(), y = scrollY, off = (y - T) / vh;
+        if (off > -0.02 && off < N - 1 + 0.02 && Math.abs(off - Math.round(off)) > 0.01) glide(T + Math.round(off) * vh);
+      }, 160);
+    }, { passive: true });
+    track.addEventListener('click', function (e) {
+      var c = e.target.closest('.wc'); if (!c) return;
+      var i = +c.dataset.i; if (i !== cur) glide(top0() + i * vh);
+    });
+
+    // ----- background -----
+    var W = 0, H = 0, dpr = 1, LS = 4, gw = 0, gh = 0, GA = null;
+    var low = document.createElement('canvas'), lx = low.getContext('2d');
+    var cache = document.createElement('canvas'), cx2 = cache.getContext('2d'), cacheKey = '';
+    var grainC = document.createElement('canvas'), grx = grainC.getContext('2d');
+    function hex(h) { return [1, 3, 5].map(function (i) { return parseInt(h.substr(i, 2), 16); }); }
+    function hsh(a, b) { var h = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return h - Math.floor(h); }
+    function vnoise(x, y) {
+      var xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+      var a = hsh(xi, yi), b = hsh(xi + 1, yi), c = hsh(xi, yi + 1), d = hsh(xi + 1, yi + 1);
+      return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+    }
+    function ss(a, b, x) { x = clamp((x - a) / (b - a), 0, 1); return x * x * (3 - 2 * x); }
+    function size() {
+      vh = innerHeight;
+      var w = pin.clientWidth, h = pin.clientHeight; if (!w || !h) return;
+      W = w; H = h; dpr = Math.min(2, devicePixelRatio || 1);
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      gw = Math.ceil(W / LS); gh = Math.ceil(H / LS); low.width = cache.width = gw; low.height = cache.height = gh;
+      GA = new Float32Array(gw * gh);
+      var cxp = W / 2, cyp = H * CFG.posY, Rr = CFG.radius * Math.min(W, H), diag = Math.hypot(W, H) / 2;
+      for (var y = 0; y < gh; y++) for (var x = 0; x < gw; x++) {
+        var px = x * LS, py = y * LS, r = Math.hypot(px - cxp, py - cyp) / Rr;
+        var spot = 1 - ss(1 - CFG.soft * 0.8, 1 + CFG.soft * 0.6, r), glow = Math.exp(-r * r * 0.9) * 0.35 * CFG.soft;
+        var nz = vnoise(px / 170, py / 170) * 0.5 + vnoise(px / 81, py / 81) * 0.3 + vnoise(px / 40, py / 40) * 0.2;
+        var hz = (nz - 0.5) * CFG.haze * 0.55 * (spot * 0.8 + glow + 0.15);
+        var vg = 1 - CFG.vig * ss(0.35, 1.05, Math.hypot(px - W / 2, py - H / 2) / diag);
+        var g = CFG.room + (CFG.bright - CFG.room) * Math.min(1, spot + glow) + hz;
+        GA[y * gw + x] = clamp(g * vg, 0, 1);
+      }
+      grainC.width = W; grainC.height = H;
+      var id = grx.createImageData(W, H), d = id.data;
+      for (var q = 0; q < W * H; q++) { var v = 128 + (Math.random() - 0.5) * 255 * CFG.grain * 1.6; d[q * 4] = d[q * 4 + 1] = d[q * 4 + 2] = v; d[q * 4 + 3] = 255; }
+      grx.putImageData(id, 0, 0);
+      cacheKey = '';
+      layout();
+    }
+    function lightAt(x, y) { if (!GA) return 0; return GA[clamp(y / LS | 0, 0, gh - 1) * gw + clamp(x / LS | 0, 0, gw - 1)]; }
+    var lA = hex(LIGHTS[0]), lB = lA, dA = hex(DARKS[0]), dB = dA, wave = null;
+    function startWave(dir, n) {
+      var now = performance.now();
+      if (wave && now - wave.t0 > CFG.waveMs * 0.5) { lA = lB; dA = dB; }
+      lB = hex(LIGHTS[n]); dB = hex(DARKS[n]);
+      if (calm) { lA = lB; dA = dB; wave = null; return; }
+      wave = { t0: now, dir: dir };
+    }
+    function field(x, y, now, grainy) {
+      if (!wave) return [1, 0];
+      var k = ease(Math.min(1, (now - wave.t0) / CFG.waveMs)), band = W * CFG.band;
+      var front = wave.dir > 0 ? (W + band * 1.5) - k * (W + band * 3) : (-band * 1.5) + k * (W + band * 3);
+      var wob = Math.sin(y * 0.011 + now * 0.003) * 46 + Math.sin(y * 0.029 - now * 0.002) * 20 + Math.sin(y * 0.004 + 1.3) * 60;
+      var t = ss(-band, band, (x - front) * wave.dir + wob), ag = 1 - Math.abs(2 * t - 1);
+      if (grainy && CFG.rough > 0) t = clamp((t - 0.5) * (1 + CFG.rough * 2.5) + 0.5 + (Math.random() - 0.5) * CFG.rough * ag * 1.6, 0, 1);
+      return [t, ag];
+    }
+    var GL = ['°', 'o', 'O', '✦'], mx = -999, my = -999, tx = -999, ty = -999, bubs = [], nextB = 0;
+    pin.addEventListener('mousemove', function (e) { var r = pin.getBoundingClientRect(); tx = e.clientX - r.left; ty = e.clientY - r.top; });
+    pin.addEventListener('mouseleave', function () { tx = ty = -999; });
+    function paint(now) {
+      if (wave && now - wave.t0 > CFG.waveMs) { lA = lB; dA = dB; wave = null; }
+      if (mx < -500 || tx < -500) { mx = tx; my = ty; } else { mx += (tx - mx) * 0.18; my += (ty - my) * 0.18; }
+      // gradient-mapped light
+      var key = lA + '|' + dA;
+      if (wave || key !== cacheKey) {
+        var img = (wave ? lx : cx2).createImageData(gw, gh), d = img.data;
+        for (var y = 0; y < gh; y++) for (var x = 0; x < gw; x++) {
+          var i = y * gw + x, g = GA[i], t = wave ? field(x * LS, y * LS, now, true)[0] : 1, o = i * 4;
+          for (var c = 0; c < 3; c++) { var dk = dA[c] + (dB[c] - dA[c]) * t, lt = lA[c] + (lB[c] - lA[c]) * t; d[o + c] = dk + (lt - dk) * g; }
+          d[o + 3] = 255;
+        }
+        if (wave) lx.putImageData(img, 0, 0); else { cx2.putImageData(img, 0, 0); cacheKey = key; }
+      }
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.imageSmoothingEnabled = !(wave && CFG.rough >= 0.3);
+      ctx.drawImage(wave ? low : cache, 0, 0, W, H);
+      ctx.imageSmoothingEnabled = true;
+      if (CFG.grain > 0) { ctx.globalCompositeOperation = 'overlay'; ctx.drawImage(grainC, 0, 0, W, H); ctx.globalCompositeOperation = 'source-over'; }
+      // marks in the light
+      var C = CFG.cell, cols = Math.ceil(W / C) + 1, rows = Math.ceil(H / C) + 1, Rm = CFG.mouseR;
+      ctx.font = '600 ' + Math.round(C * 0.88) + 'px "Barlow Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      var tint = [0, 1, 2].map(function (i) { return Math.round(lB[i] * 0.25 + 233 * 0.75); }).join(',');
+      for (var j = 0; j < rows; j++) for (var ii = 0; ii < cols; ii++) {
+        var px = ii * C + C / 2, py = j * C + C / 2, L = lightAt(px, py); if (L < 0.04) continue;
+        var dd = Math.hypot(px - mx, py - my), gg = dd < Rm ? Math.pow(1 - dd / Rm, 1.4) : 0, ag = wave ? field(px, py, now, false)[1] : 0;
+        var h = hsh(ii, j), tw = 0.5 + 0.5 * Math.sin(now * 0.003 + h * 40);
+        var lv = gg * 3.6 + ag * 2.6 * (0.4 + 0.6 * h) + ((gg > 0 || ag > 0) ? tw * 0.7 : 0);
+        var al = (CFG.dots * 0.22 + Math.min(0.6, gg * 0.6 + ag * 0.45)) * Math.min(1, L * 1.25); if (al < 0.01) continue;
+        ctx.fillStyle = 'rgba(' + tint + ',' + al.toFixed(3) + ')';
+        if (lv < 0.7) ctx.fillRect(px - 1, py - 1, 2, 2); else ctx.fillText(GL[Math.min(3, Math.floor(lv - 0.7))], px, py);
+      }
+      // now and then a bubble drifts up through the light
+      if (now > nextB) {
+        nextB = now + CFG.bubbles * 1000 * (0.6 + Math.random() * 0.8);
+        var R2 = CFG.radius * Math.min(W, H) * 0.8, an = Math.random() * Math.PI * 2;
+        bubs.push({ x: W / 2 + Math.cos(an) * R2 * Math.random(), y: H * CFG.posY + R2 * (0.2 + Math.random() * 0.6), t0: now, life: 4200 + Math.random() * 2400, s: C * (0.6 + Math.random() * 0.7) });
+      }
+      bubs = bubs.filter(function (b) { return now - b.t0 < b.life; });
+      bubs.forEach(function (b) {
+        var k = (now - b.t0) / b.life, y = b.y - k * 90, x = b.x + Math.sin(k * 6 + b.s) * 6, a = Math.sin(k * Math.PI) * 0.55 * Math.min(1, lightAt(x, y) * 1.3);
+        ctx.font = '600 ' + Math.round(b.s) + 'px "Barlow Condensed", sans-serif'; ctx.fillStyle = 'rgba(' + tint + ',' + a.toFixed(3) + ')';
+        ctx.fillText(k > 0.8 ? '°' : 'o', x, y);
+      });
+    }
+    // run only while the section is on screen
+    var onScreen = false, looping = false;
+    function loop(now) { if (!onScreen) { looping = false; return; } if (!GA || !W) size(); if (GA) paint(now); requestAnimationFrame(loop); }
+    function wake() { if (onScreen && !looping) { looping = true; requestAnimationFrame(loop); } }
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (es) { onScreen = es[0].isIntersecting; wake(); });
+      io.observe(sec);
+    } else { onScreen = true; wake(); }
+    addEventListener('resize', function () { GA = null; vh = innerHeight; layout(); });
+
+    return {
+      spot: function () { if (!W) size(); return { x: W / 2, y: H * CFG.posY, r: CFG.radius * Math.min(W || innerWidth, H || innerHeight) }; },
+      lightCol: function () { return LIGHTS[cur]; },
+      titleBox: function () { var b = $('wTitle').getBoundingClientRect(); return { x: b.left, y: b.top + b.height / 2, h: b.height }; },
+      prepare: function () { $('wTitle').style.opacity = 0; track.classList.remove('drop'); track.classList.add('await'); },
+      enter: function () { size(); layout(); onScreen = true; wake(); },
+      showTitle: function () { $('wTitle').style.opacity = 1; },
+      drop: function () {
+        track.classList.remove('await'); void track.offsetWidth; track.classList.add('drop');
+        setTimeout(function () { track.classList.remove('drop'); }, 1500);
+      },
+      layout: layout
+    };
+  })();
+
   // ---------- Initial state ----------
   light(null);
   setDrink(1);
   setPool({ dur: 0, top: 0 });
-  renderMenu();
+  WK.layout();
 })();

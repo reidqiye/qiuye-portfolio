@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:ital,wght@1,800;1,900&amp;family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;1,500;1,600&amp;family=Noto+Sans+SC:wght@400;500&amp;display=swap">
-<link rel="stylesheet" href="style.css?v=40">
+<link rel="stylesheet" href="style.css?v=41">
 </head>
 <body>
 <div id="root" class="page">
@@ -105,31 +105,14 @@
 <span id="orderTag" class="order-tag">✦ YOU ORDERED · WORKS ✦</span>
 
 <div class="pane" data-pane="1">
-<div class="menu-card">
-<svg class="grain" aria-hidden="true"><filter id="mgrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="9" stitchTiles="stitch"></feTurbulence><feColorMatrix type="saturate" values="0"></feColorMatrix><feComponentTransfer><feFuncR type="linear" slope="0.5" intercept="0.62"></feFuncR><feFuncG type="linear" slope="0.5" intercept="0.62"></feFuncG><feFuncB type="linear" slope="0.5" intercept="0.62"></feFuncB></feComponentTransfer></filter><rect width="100%" height="100%" filter="url(#mgrain)"></rect></svg>
-<div class="menu-head">
-<span class="kicker">✦ TONIGHT&#8217;S MENU · 今日酒单 ✦</span>
-<h2>Pick your poison.</h2>
-<span class="muted">每一杯都是一个作品。把鼠标停在酒名上，看看它长什么样。</span>
+<section id="works" class="works" aria-label="works · tonight's menu">
+<div class="w-pin" id="wPin">
+<canvas id="wBg" class="w-bg" aria-hidden="true"></canvas>
+<div class="w-top"><b id="wTitle">TONIGHT&#8217;S MENU</b><span id="wCount">01 / 05</span></div>
+<div class="w-track" id="wTrack"></div>
+<div class="w-foot"><span>SCROLL &#8595;</span><div class="w-pips" id="wPips"></div><span>SERVED COLD · 5 SIGNATURES</span></div>
 </div>
-<div class="menu-grid">
-<div class="menu-list">
-<span class="section-label">HOUSE SIGNATURES · 招牌特调</span>
-<div id="menuList"></div>
-<span class="section-label later">SEASONAL SPECIALS · 本季特调</span>
-<div id="specialList"></div>
-</div>
-<div class="preview">
-<div class="preview-img"><img id="pvImg" src="assets/cover-second-chance.webp" alt=""></div>
-<div class="preview-text">
-<span class="kicker">BARTENDER&#8217;S NOTE · 调酒师笔记</span>
-<span id="pvName" class="preview-name"></span>
-<span id="pvDesc" class="body"></span>
-<span id="pvRole" class="tools"></span>
-</div>
-</div>
-</div>
-</div>
+</section>
 </div>
 
 <div class="pane" data-pane="0" hidden>
@@ -174,6 +157,6 @@
 </section>
 
 </div>
-<script src="main.js?v=40"></script>
+<script src="main.js?v=41"></script>
 </body>
 </html>
