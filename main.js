@@ -822,26 +822,35 @@
         }
         dotKey = tsKey + '|' + W + 'x' + H;
       }
-      if (ts) ctx.drawImage(dotC, 0, 0, W, H);
-      else { ctx.font = '600 ' + Math.round(C * 0.88) + 'px "Barlow Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; }
+      // the cached dot field, minus the mouse disc (those cells are redrawn below, so a dot can turn into a ring)
+      var mouseOn = mx > -500;
+      if (ts && !wave) {
+        if (mouseOn) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.arc(mx, my, Rm, 0, Math.PI * 2, true); ctx.clip('evenodd'); }
+        ctx.drawImage(dotC, 0, 0, W, H);
+        if (mouseOn) ctx.restore();
+      }
+      if (!ts) { ctx.font = '600 ' + Math.round(C * 0.88) + 'px "Barlow Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; }
       var i1 = 0, i2 = cols - 1, j1 = 0, j2 = rows - 1;
       if (!wave) {                                   // only the cells under the mouse need work
-        if (mx < -500) { i2 = -1; } else { i1 = Math.max(0, Math.floor((mx - Rm) / C)); i2 = Math.min(cols - 1, Math.ceil((mx + Rm) / C)); j1 = Math.max(0, Math.floor((my - Rm) / C)); j2 = Math.min(rows - 1, Math.ceil((my + Rm) / C)); }
+        if (!mouseOn) { i2 = -1; } else { i1 = Math.max(0, Math.floor((mx - Rm) / C) - 1); i2 = Math.min(cols - 1, Math.ceil((mx + Rm) / C) + 1); j1 = Math.max(0, Math.floor((my - Rm) / C) - 1); j2 = Math.min(rows - 1, Math.ceil((my + Rm) / C) + 1); }
       }
       for (var j = j1; j <= j2; j++) for (var ii = i1; ii <= i2; ii++) {
         var px = ii * C + C / 2 + (hsh(ii + 7, j) - 0.5) * C * CFG.jitter, py = j * C + C / 2 + (hsh(ii, j + 9) - 0.5) * C * CFG.jitter, L = lightAt(px, py); if (L < 0.04) continue;
-        var dd = Math.hypot(px - mx, py - my), gg = dd < Rm ? Math.pow(1 - dd / Rm, 1.4) : 0, ag = wave ? field(px, py, now, false)[1] : 0;
-        if (gg <= 0 && ag <= 0.01) continue;
-        if (hsh(ii + 3, j + 5) > CFG.density) continue;     // leave gaps: only some cells bloom
+        var dd = Math.hypot(px - mx, py - my);
+        if (!wave && dd >= Rm) continue;                 // outside the disc: already in the cached field
+        var gg = dd < Rm ? Math.pow(1 - dd / Rm, 1.4) : 0, ag = wave ? field(px, py, now, false)[1] : 0;
+        var lf = Math.min(1, L * 1.25), base = CFG.dots * 0.22 * lf;
         var h = hsh(ii, j), tw = 0.5 + 0.5 * Math.sin(now * 0.003 + h * 40);
-        var lv = gg * 3.6 + ag * 2.6 * (0.4 + 0.6 * h) + tw * 0.7;
-        var lf = Math.min(1, L * 1.25), al = Math.min(0.6, gg * 0.6 + ag * 0.45) * lf; if (al < 0.01) continue;
+        var lv = (gg > 0 || ag > 0.01) ? gg * 3.6 + ag * 2.6 * (0.4 + 0.6 * h) + tw * 0.7 : 0;
+        var boost = Math.min(0.6, gg * 0.6 + ag * 0.45) * lf;
+        var bloom = lv >= 0.7 && hsh(ii + 3, j + 5) <= CFG.density;
         if (ts) {
-          var sp = ts[lv < 0.7 ? 0 : lv < 1.7 ? 1 : lv < 2.9 ? 2 : 3];
-          ctx.globalAlpha = lv < 0.7 ? al : Math.min(1, al + CFG.dots * 0.22 * lf); ctx.drawImage(sp.c, px - sp.s / 2, py - sp.s / 2, sp.s, sp.s);
-        } else {
-          ctx.fillStyle = 'rgba(' + tint + ',' + al.toFixed(3) + ')';
-          if (lv < 0.7) ctx.fillRect(px - 1, py - 1, 2, 2); else ctx.fillText(GL[Math.min(3, Math.floor(lv - 0.7))], px, py);
+          // a blooming cell shows only its ring/star: the dot it grew from is gone
+          var sp = ts[bloom ? (lv < 1.7 ? 1 : lv < 2.9 ? 2 : 3) : 0];
+          ctx.globalAlpha = Math.min(1, base + boost); ctx.drawImage(sp.c, px - sp.s / 2, py - sp.s / 2, sp.s, sp.s);
+        } else if (boost > 0.01) {
+          ctx.fillStyle = 'rgba(' + tint + ',' + boost.toFixed(3) + ')';
+          if (!bloom) ctx.fillRect(px - 1, py - 1, 2, 2); else ctx.fillText(GL[Math.min(3, Math.floor(lv - 0.7))], px, py);
         }
       }
       ctx.globalAlpha = 1;
