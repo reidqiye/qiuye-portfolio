@@ -161,7 +161,7 @@
         scrollTo(0, P.poolTop);
         if (P.sea) { P.sea.remove(); P.sea = null; }
       }
-      if (t > (P.arcs ? 3240 : 3400)) {
+      if (t > (P.arcs ? 2760 : 3400)) {
         if (P.arcLayer) { P.arcLayer.remove(); P.arcLayer = null; }
         if (P.sea) { P.sea.remove(); P.sea = null; }
         if (P.glass) { P.glass.remove(); P.glass = null; }
@@ -288,7 +288,7 @@
     var near = function (x, y) { var dx = Math.max(0, -x, x - W), dy = Math.max(0, -y, y - Hh); return Math.hypot(dx, dy); };
     var d = [
       { col: '#7FA585', ring: '#E9E7DB', x: wx, y: wy, t0: 1100, dur: 560, ph: 1.7 },
-      { col: P.color, ring: '#E9E7DB', x: 1.55 * W, y: -0.6 * Hh, t0: 2150, dur: 460, ph: 2.6, stars: true }
+      { col: P.color, ring: '#E9E7DB', x: 1.55 * W, y: -0.6 * Hh, t0: 1700, dur: 430, ph: 2.6, stars: true }
     ];
     d.forEach(function (c) { c.r0 = c === d[0] ? g.width * 0.45 : near(c.x, c.y); c.r1 = far(c.x, c.y); });
     var el = document.createElement('div');
@@ -338,12 +338,12 @@
   function shakeSil(L, ts) {
     var sil = L.querySelector('.arc-sil'); if (!sil) return;
     // the figure stays still; the shaker gives two easy shakes, and each one sends out a thin ring
-    var cyc = 600, n = Math.floor(ts / cyc), u = (ts % cyc) / cyc;
-    var sw = n < 2 ? Math.sin(u * Math.PI * 2) * (1 - u * 0.3) : 0;
+    var cyc = 560, n = Math.floor(ts / cyc), u = (ts % cyc) / cyc;
+    var sw = n < 2 ? Math.sin(u * Math.PI * 2) : 0;
     // shoulders lift, elbows follow, the shaker tips in the hands
     var q = function (c, deg) { var e = sil.querySelector('.j-' + c); if (e) e.style.transform = 'rotate(' + deg.toFixed(2) + 'deg)'; };
-    q('upper_f', -4 * sw); q('fore_f', 7 * sw); q('shaker', -5 * sw);
-    q('upper_b', -3 * sw); q('fore_b', 5 * sw);
+    q('upper_f', -8.23 * sw); q('fore_f', 7.07 * sw); q('shaker', 3 * sw);
+    q('upper_b', -5.48 * sw); q('fore_b', 4.14 * sw);
     sil.querySelectorAll('.sil-waves circle').forEach(function (ci, q) {
       var ph = (ts - q * cyc) / 900;
       if (ph < 0 || ph > 1 || q > 1) { ci.setAttribute('opacity', 0); return; }
@@ -367,7 +367,7 @@
         L.querySelectorAll('[class^="rg"], [class^="dt"]').forEach(function (e) { e.setAttribute('opacity', 0); });
         return;
       }
-      lay.style.clipPath = k <= 0 ? 'circle(0 at 0 0)' : disc(c, r, t);
+      lay.style.clipPath = k <= 0 ? 'circle(0px at 0px 0px)' : 'circle(' + r.toFixed(1) + 'px at ' + c.x.toFixed(1) + 'px ' + c.y.toFixed(1) + 'px)';
       var ring = L.querySelector('.rg' + n + 'a'), ring2 = L.querySelector('.rg' + n + 'b'), op = k <= 0 ? 0 : 0.85 * (1 - clamp01((k - 0.7) / 0.3));
       ring.setAttribute('r', (r + R * 2.4).toFixed(1)); ring.setAttribute('opacity', op.toFixed(2));
       ring2.setAttribute('r', (r + R * (5.5 + 2 * e)).toFixed(1)); ring2.setAttribute('opacity', (op * 0.6).toFixed(2));
@@ -384,14 +384,14 @@
       if (n === 0) shakeSil(L, t - c.t0);
     });
     // fully covered: move the page to the menu underneath, hold a breath, then let the drink clear
-    if (t > 2680 && !P.handed) {
+    if (t > 2200 && !P.handed) {
       P.handed = true;
       if (P.glass) { P.glass.remove(); P.glass = null; }
       setPool({ dur: 0, top: 0 }); scrollTo(0, P.poolTop);
     }
-    if (t > 2840) {
-      if (!P.shown) { P.shown = true; showContent(true); }
-      L.style.opacity = (1 - clamp01((t - 2840) / 340)).toFixed(3);
+    if (t > 2360) {
+      if (!P.shown) { P.shown = true; showContent(true); L.style.willChange = 'opacity'; }
+      L.style.opacity = (1 - clamp01((t - 2360) / 340)).toFixed(3);
     }
   }
 
