@@ -161,7 +161,7 @@
         scrollTo(0, P.poolTop);
         if (P.sea) { P.sea.remove(); P.sea = null; }
       }
-      if (t > (P.arcs ? 3250 : 3400)) {
+      if (t > (P.arcs ? 2620 : 3400)) {
         if (P.arcLayer) { P.arcLayer.remove(); P.arcLayer = null; }
         if (P.sea) { P.sea.remove(); P.sea = null; }
         if (P.glass) { P.glass.remove(); P.glass = null; }
@@ -287,9 +287,8 @@
     var far = function (x, y) { return Math.max(Math.hypot(x, y), Math.hypot(W - x, y), Math.hypot(x, Hh - y), Math.hypot(W - x, Hh - y)) * 1.04; };
     var near = function (x, y) { var dx = Math.max(0, -x, x - W), dy = Math.max(0, -y, y - Hh); return Math.hypot(dx, dy); };
     var d = [
-      { col: '#E9E7DB', ring: '#272523', x: wx, y: wy, t0: 1150, dur: 650, ph: 0.4 },
-      { col: '#7FA585', ring: '#E9E7DB', x: -0.55 * W, y: 1.45 * Hh, t0: 1650, dur: 560, ph: 1.7 },
-      { col: P.color, ring: '#E9E7DB', x: 1.55 * W, y: -0.6 * Hh, t0: 2020, dur: 580, ph: 2.6, stars: true }
+      { col: '#7FA585', ring: '#E9E7DB', x: wx, y: wy, t0: 1100, dur: 560, ph: 1.7 },
+      { col: P.color, ring: '#E9E7DB', x: 1.55 * W, y: -0.6 * Hh, t0: 1560, dur: 430, ph: 2.6, stars: true }
     ];
     d.forEach(function (c) { c.r0 = c === d[0] ? g.width * 0.45 : near(c.x, c.y); c.r1 = far(c.x, c.y); });
     var el = document.createElement('div');
@@ -305,14 +304,14 @@
     svg += '</svg>';
     var html = '';
     // what rides inside each layer: the giant word (a different colour per layer), the bartender, small labels
-    var big = [['WORKS', '#DA6F41'], ['WORKS', '#E9E7DB'], ["TONIGHT'S MENU", '#272523']];
-    var lab = [['No.01 — 05', 'POUR 01 / 03'], ['SHAKEN, NOT STIRRED', 'POUR 02 / 03'], ["TONIGHT'S POUR", 'SERVED COLD · 5 SIGNATURES']];
+    var big = [['WORKS', '#E9E7DB'], ["TONIGHT'S<br>MENU", '#272523']];
+    var lab = [['SHAKEN, NOT STIRRED', 'POUR 01 / 02'], ["TONIGHT'S POUR", 'SERVED COLD · 5 SIGNATURES']];
     d.forEach(function (c, n) {
       html += '<div class="arc arc' + n + '" style="background:' + c.col + '"><div class="arc-grain"></div>';
       html += '<div class="arc-word aw' + n + '" style="color:' + big[n][1] + '">' + big[n][0] + '</div>';
-      if (n === 1) html += '<div class="arc-sil"></div>';
-      html += '<div class="arc-lab al-a" style="color:' + (n === 0 ? '#272523' : '#E9E7DB') + '">' + lab[n][0] + '</div>';
-      html += '<div class="arc-lab al-b" style="color:' + (n === 0 ? '#272523' : '#E9E7DB') + '">' + lab[n][1] + '</div>';
+      if (n === 0) html += '<div class="arc-sil"><div class="sil-body"></div><div class="sil-shaker"></div><svg class="sil-waves" viewBox="-50 -50 100 100"><circle r="0"/><circle r="0"/><circle r="0"/></svg></div>';
+      html += '<div class="arc-lab al-a" style="color:#E9E7DB">' + lab[n][0] + '</div>';
+      html += '<div class="arc-lab al-b" style="color:#E9E7DB">' + lab[n][1] + '</div>';
       if (c.stars) {
         html += '<svg class="arc-stars" width="' + W + '" height="' + Hh + '">';
         for (var k = 0; k < 18; k++) {
@@ -335,8 +334,20 @@
     }
     return 'polygon(' + pts.join(',') + ')';
   }
+  // the bartender shakes the shaker; every shake sends out a thin ring
+  function shakeSil(L, ts) {
+    var sil = L.querySelector('.arc-sil'); if (!sil) return;
+    var k = clamp01(ts / 1100), beat = ts * 0.022;
+    sil.style.transform = 'translate(' + (-3 * k).toFixed(2) + 'vw, 0) scale(' + (1 + 0.05 * k).toFixed(3) + ') rotate(' + (Math.sin(beat * 0.5) * 1.2).toFixed(2) + 'deg)';
+    var sh = sil.querySelector('.sil-shaker');
+    sh.style.transform = 'translate(' + (Math.sin(beat) * 1.6).toFixed(2) + '%, ' + (Math.cos(beat * 2) * 2.2).toFixed(2) + '%) rotate(' + (Math.sin(beat) * 9).toFixed(2) + 'deg)';
+    sil.querySelectorAll('.sil-waves circle').forEach(function (ci, q) {
+      var ph = ((ts / 420) + q / 3) % 1;
+      ci.setAttribute('r', (6 + ph * 40).toFixed(1)); ci.setAttribute('opacity', (0.9 * (1 - ph)).toFixed(2));
+    });
+  }
   function runArcs(P, t, now) {
-    if (t < 1150) return;
+    if (t < 1100) return;
     if (!P.arcLayer) makeArcs(P);
     var L = P.arcLayer, done = true;
     P.arcD.forEach(function (c, n) {
@@ -345,7 +356,7 @@
       var e = n === 0 ? 1 - Math.pow(1 - k, 2.2) : 1 - Math.pow(1 - k, 3);
       var r = lerp(c.r0, c.r1, e);
       var lay = L.querySelector('.arc' + n);
-      if (c.full) { var wf = L.querySelector('.aw' + n); if (wf) wf.style.transform = 'translate(' + ((n % 2 ? 1 : -1) * (12 - 24 * clamp01((t - c.t0) / 1400))).toFixed(2) + 'vw, -50%)'; return; }
+      if (c.full) { if (n === 0) shakeSil(L, t - c.t0); var wf = L.querySelector('.aw' + n); if (wf) wf.style.transform = 'translate(' + ((n % 2 ? -1 : 1) * (10 - 20 * clamp01((t - c.t0) / 1100))).toFixed(2) + 'vw, -50%)'; return; }
       if (k >= 1) {                       // it covers the screen: stop redrawing it, and drop the layers under it
         c.full = true; lay.style.clipPath = 'none'; lay.style.willChange = 'auto';
         for (var m = 0; m < n; m++) { var u = L.querySelector('.arc' + m); if (u) u.remove(); P.arcD[m].full = true; }
@@ -365,19 +376,18 @@
       });
       // the giant word drifts across while its layer is on screen
       var w = L.querySelector('.aw' + n);
-      if (w) w.style.transform = 'translate(' + ((n % 2 ? 1 : -1) * (12 - 24 * clamp01((t - c.t0) / 1400))).toFixed(2) + 'vw, -50%)';
-      var sil = n === 1 && L.querySelector('.arc-sil');
-      if (sil) sil.style.transform = 'translate(' + (-4 * clamp01((t - c.t0) / 1200)).toFixed(2) + 'vw, 0) scale(' + (1 + 0.06 * clamp01((t - c.t0) / 1200)).toFixed(3) + ')';
+      if (w) w.style.transform = 'translate(' + ((n % 2 ? -1 : 1) * (10 - 20 * clamp01((t - c.t0) / 1100))).toFixed(2) + 'vw, -50%)';
+      if (n === 0) shakeSil(L, t - c.t0);
     });
     // fully covered: move the page to the menu underneath, hold a breath, then let the drink clear
-    if (t > 2620 && !P.handed) {
+    if (t > 2060 && !P.handed) {
       P.handed = true;
       if (P.glass) { P.glass.remove(); P.glass = null; }
       setPool({ dur: 0, top: 0 }); scrollTo(0, P.poolTop);
     }
-    if (t > 2800) {
+    if (t > 2220) {
       if (!P.shown) { P.shown = true; showContent(true); }
-      L.style.opacity = (1 - clamp01((t - 2800) / 380)).toFixed(3);
+      L.style.opacity = (1 - clamp01((t - 2220) / 340)).toFixed(3);
     }
   }
 
