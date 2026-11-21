@@ -751,7 +751,7 @@
       var id = grx.createImageData(W, H), d = id.data;
       for (var q = 0; q < W * H; q++) { var v = 128 + (Math.random() - 0.5) * 255 * CFG.grain * 1.6; d[q * 4] = d[q * 4 + 1] = d[q * 4 + 2] = v; d[q * 4 + 3] = 255; }
       grx.putImageData(id, 0, 0);
-      cacheKey = '';
+      cacheKey = ''; dotKey = '';
       layout();
     }
     function lightAt(x, y) { if (!GA) return 0; return GA[clamp(y / LS | 0, 0, gh - 1) * gw + clamp(x / LS | 0, 0, gw - 1)]; }
@@ -771,6 +771,21 @@
       var t = ss(-band, band, (x - front) * wave.dir + wob), ag = 1 - Math.abs(2 * t - 1);
       if (grainy && CFG.rough > 0) t = clamp((t - 0.5) * (1 + CFG.rough * 2.5) + 0.5 + (Math.random() - 0.5) * CFG.rough * ag * 1.6, 0, 1);
       return [t, ag];
+    }
+    // Qiuye's hand-drawn marks: dot -> small ring -> big ring -> star
+    var SPR = ['mark_dot', 'mark_ring_s', 'mark_ring_l', 'mark_star'].map(function (n) { var im = new Image(); im.src = 'assets/' + n + '.webp'; return im; });
+    var TS = null, tsKey = '', dotC = document.createElement('canvas'), dotKey = '';
+    function tinted(rgb) {               // pre-scaled, pre-coloured copies, rebuilt only when the light colour or size changes
+      var key = rgb + '|' + CFG.cell + '|' + dpr;
+      if (key === tsKey) return TS;
+      if (!SPR.every(function (im) { return im.complete && im.naturalWidth; })) return null;
+      TS = SPR.map(function (im, n) {
+        var sz = CFG.cell * (n === 0 ? 1.7 : 1.2), px = Math.max(2, Math.round(sz * dpr)), c = document.createElement('canvas');
+        c.width = c.height = px; var g = c.getContext('2d');
+        g.drawImage(im, 0, 0, px, px); g.globalCompositeOperation = 'source-in'; g.fillStyle = 'rgb(' + rgb + ')'; g.fillRect(0, 0, px, px);
+        return { c: c, s: sz };
+      });
+      tsKey = key; return TS;
     }
     var GL = ['°', 'o', 'O', '✦'], mx = -999, my = -999, tx = -999, ty = -999, bubs = [], nextB = 0;
     pin.addEventListener('mousemove', function (e) { var r = pin.getBoundingClientRect(); tx = e.clientX - r.left; ty = e.clientY - r.top; });
@@ -794,19 +809,41 @@
       ctx.drawImage(wave ? low : cache, 0, 0, W, H);
       ctx.imageSmoothingEnabled = true;
       if (CFG.grain > 0) { ctx.globalCompositeOperation = 'overlay'; ctx.drawImage(grainC, 0, 0, W, H); ctx.globalCompositeOperation = 'source-over'; }
-      // marks in the light
+      // marks in the light: the quiet dot field is cached; only the mouse ring and the wave band are drawn per frame
       var C = CFG.cell, cols = Math.ceil(W / C) + 1, rows = Math.ceil(H / C) + 1, Rm = CFG.mouseR;
-      ctx.font = '600 ' + Math.round(C * 0.88) + 'px "Barlow Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       var tint = [0, 1, 2].map(function (i) { return Math.round(lB[i] * 0.25 + 233 * 0.75); }).join(',');
-      for (var j = 0; j < rows; j++) for (var ii = 0; ii < cols; ii++) {
+      var ts = tinted(tint);
+      if (ts && dotKey !== tsKey + '|' + W + 'x' + H) {
+        dotC.width = Math.round(W * dpr); dotC.height = Math.round(H * dpr);
+        var dg = dotC.getContext('2d'); dg.setTransform(dpr, 0, 0, dpr, 0, 0);
+        for (var j0 = 0; j0 < rows; j0++) for (var i0 = 0; i0 < cols; i0++) {
+          var qx = i0 * C + C / 2, qy = j0 * C + C / 2, L0 = lightAt(qx, qy); if (L0 < 0.04) continue;
+          dg.globalAlpha = CFG.dots * 0.22 * Math.min(1, L0 * 1.25); dg.drawImage(ts[0].c, qx - ts[0].s / 2, qy - ts[0].s / 2, ts[0].s, ts[0].s);
+        }
+        dotKey = tsKey + '|' + W + 'x' + H;
+      }
+      if (ts) ctx.drawImage(dotC, 0, 0, W, H);
+      else { ctx.font = '600 ' + Math.round(C * 0.88) + 'px "Barlow Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; }
+      var i1 = 0, i2 = cols - 1, j1 = 0, j2 = rows - 1;
+      if (!wave) {                                   // only the cells under the mouse need work
+        if (mx < -500) { i2 = -1; } else { i1 = Math.max(0, Math.floor((mx - Rm) / C)); i2 = Math.min(cols - 1, Math.ceil((mx + Rm) / C)); j1 = Math.max(0, Math.floor((my - Rm) / C)); j2 = Math.min(rows - 1, Math.ceil((my + Rm) / C)); }
+      }
+      for (var j = j1; j <= j2; j++) for (var ii = i1; ii <= i2; ii++) {
         var px = ii * C + C / 2, py = j * C + C / 2, L = lightAt(px, py); if (L < 0.04) continue;
         var dd = Math.hypot(px - mx, py - my), gg = dd < Rm ? Math.pow(1 - dd / Rm, 1.4) : 0, ag = wave ? field(px, py, now, false)[1] : 0;
+        if (gg <= 0 && ag <= 0.01) continue;
         var h = hsh(ii, j), tw = 0.5 + 0.5 * Math.sin(now * 0.003 + h * 40);
-        var lv = gg * 3.6 + ag * 2.6 * (0.4 + 0.6 * h) + ((gg > 0 || ag > 0) ? tw * 0.7 : 0);
-        var al = (CFG.dots * 0.22 + Math.min(0.6, gg * 0.6 + ag * 0.45)) * Math.min(1, L * 1.25); if (al < 0.01) continue;
-        ctx.fillStyle = 'rgba(' + tint + ',' + al.toFixed(3) + ')';
-        if (lv < 0.7) ctx.fillRect(px - 1, py - 1, 2, 2); else ctx.fillText(GL[Math.min(3, Math.floor(lv - 0.7))], px, py);
+        var lv = gg * 3.6 + ag * 2.6 * (0.4 + 0.6 * h) + tw * 0.7;
+        var lf = Math.min(1, L * 1.25), al = Math.min(0.6, gg * 0.6 + ag * 0.45) * lf; if (al < 0.01) continue;
+        if (ts) {
+          var sp = ts[lv < 0.7 ? 0 : lv < 1.7 ? 1 : lv < 2.9 ? 2 : 3];
+          ctx.globalAlpha = lv < 0.7 ? al : Math.min(1, al + CFG.dots * 0.22 * lf); ctx.drawImage(sp.c, px - sp.s / 2, py - sp.s / 2, sp.s, sp.s);
+        } else {
+          ctx.fillStyle = 'rgba(' + tint + ',' + al.toFixed(3) + ')';
+          if (lv < 0.7) ctx.fillRect(px - 1, py - 1, 2, 2); else ctx.fillText(GL[Math.min(3, Math.floor(lv - 0.7))], px, py);
+        }
       }
+      ctx.globalAlpha = 1;
       // now and then a bubble drifts up through the light
       if (now > nextB) {
         nextB = now + CFG.bubbles * 1000 * (0.6 + Math.random() * 0.8);
@@ -816,8 +853,8 @@
       bubs = bubs.filter(function (b) { return now - b.t0 < b.life; });
       bubs.forEach(function (b) {
         var k = (now - b.t0) / b.life, y = b.y - k * 90, x = b.x + Math.sin(k * 6 + b.s) * 6, a = Math.sin(k * Math.PI) * 0.55 * Math.min(1, lightAt(x, y) * 1.3);
-        ctx.font = '600 ' + Math.round(b.s) + 'px "Barlow Condensed", sans-serif'; ctx.fillStyle = 'rgba(' + tint + ',' + a.toFixed(3) + ')';
-        ctx.fillText(k > 0.8 ? '°' : 'o', x, y);
+        if (ts) { var bs = b.s * (k > 0.8 ? 0.8 : 1.3); ctx.globalAlpha = a; ctx.drawImage(ts[k > 0.8 ? 1 : 2].c, x - bs / 2, y - bs / 2, bs, bs); ctx.globalAlpha = 1; }
+        else { ctx.font = '600 ' + Math.round(b.s) + 'px "Barlow Condensed", sans-serif'; ctx.fillStyle = 'rgba(' + tint + ',' + a.toFixed(3) + ')'; ctx.fillText(k > 0.8 ? '°' : 'o', x, y); }
       });
     }
     // run only while the section is on screen
