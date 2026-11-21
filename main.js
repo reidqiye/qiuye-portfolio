@@ -277,111 +277,140 @@
   }
 
   // ---------- Works: giant circles slicing across the screen ----------
-  // Three huge discs (cream, green, then the drink). The first grows out of the filled window; the other two
-  // have their centres far off screen, so only their curved edges sweep across. Each edge has a faint ripple
-  // and a thin ring running just outside it. The drink disc carries little stars.
-  var STAR = 'M0-1L.18-.18 1 0 .18.18 0 1-.18.18-1 0-.18-.18Z';
+  // Everything is painted onto ONE canvas each frame: two huge discs (green, then the drink), their contents,
+  // the thin rings and drops. Painting one image is steady on every machine; stacking clipped full-screen
+  // layers made Chrome on the Mac flash.
+  var RIG = { aspect: 1.13949, j: {"shoulder_f": [0.3811, 0.7196], "elbow_f": [0.5243, 0.7851], "shoulder_b": [0.5013, 0.5844], "elbow_b": [0.7499, 0.6718], "grip_f": [0.8093, 0.3197], "grip_b": [0.8582, 0.3157]}, parts: ['upper_b', 'fore_b', 'body', 'upper_f', 'fore_f', 'shaker'], img: {} };
+  RIG.parts.forEach(function (n) { var im = new Image(); im.src = 'assets/rig/' + n + '.png'; if (im.decode) im.decode().catch(function () {}); RIG.img[n] = im; });
+  var GRAIN = (function () {
+    var c = document.createElement('canvas'); c.width = c.height = 160;
+    var x = c.getContext('2d'), d = x.createImageData(160, 160);
+    for (var q = 0; q < d.data.length; q += 4) { var v = Math.random(); d.data[q] = 38; d.data[q + 1] = 34; d.data[q + 2] = 30; d.data[q + 3] = v > 0.82 ? (v - 0.82) / 0.18 * 70 : 0; }
+    x.putImageData(d, 0, 0); return c;
+  })();
   function makeArcs(P) {
     var W = innerWidth, Hh = innerHeight, g = P.glass.getBoundingClientRect();
     var wx = g.left + g.width / 2, wy = g.top + g.height * 0.55;
     var far = function (x, y) { return Math.max(Math.hypot(x, y), Math.hypot(W - x, y), Math.hypot(x, Hh - y), Math.hypot(W - x, Hh - y)) * 1.04; };
     var near = function (x, y) { var dx = Math.max(0, -x, x - W), dy = Math.max(0, -y, y - Hh); return Math.hypot(dx, dy); };
     var d = [
-      { col: '#7FA585', ring: '#E9E7DB', x: wx, y: wy, t0: 1100, dur: 560, ph: 1.7 },
-      { col: P.color, ring: '#E9E7DB', x: 1.55 * W, y: -0.6 * Hh, t0: 1700, dur: 430, ph: 2.6, stars: true }
+      { col: '#7FA585', ring: '#E9E7DB', x: wx, y: wy, t0: 1100, dur: 560, ph: 1.7, r0: g.width * 0.45 },
+      { col: P.color, ring: '#E9E7DB', x: 1.55 * W, y: -0.6 * Hh, t0: 1700, dur: 430, ph: 2.6 }
     ];
-    d.forEach(function (c) { c.r0 = c === d[0] ? g.width * 0.45 : near(c.x, c.y); c.r1 = far(c.x, c.y); });
+    d.forEach(function (c, n) {
+      if (n) c.r0 = near(c.x, c.y);
+      c.r1 = far(c.x, c.y);
+      c.dots = [];
+      for (var q = 0; q < 3; q++) c.dots.push({ a: Math.random() * Math.PI * 2, off: R * (3 + Math.random() * 5), sz: R * (0.35 + Math.random() * 0.5) });
+    });
+    var stars = [];
+    for (var q = 0; q < 18; q++) stars.push({ x: Math.random() * W, y: Math.random() * Hh, s: 7 + Math.random() * 12 });
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
     var el = document.createElement('div');
     el.className = 'arcs'; el.setAttribute('aria-hidden', 'true');
-    var svg = '<svg class="arc-rings" width="' + W + '" height="' + Hh + '">';
-    d.forEach(function (c, n) {
-      svg += '<circle class="rg' + n + 'a" fill="none" stroke="' + c.ring + '" stroke-width="2" cx="' + c.x + '" cy="' + c.y + '" r="0" opacity="0"/>';
-      svg += '<circle class="rg' + n + 'b" fill="none" stroke="' + c.ring + '" stroke-width="1" cx="' + c.x + '" cy="' + c.y + '" r="0" opacity="0"/>';
-      c.dots = [];
-      for (var q = 0; q < 3; q++) { c.dots.push({ a: Math.random() * Math.PI * 2, off: R * (3 + Math.random() * 5), sz: R * (0.35 + Math.random() * 0.5) });
-        svg += '<circle class="dt' + n + '_' + q + '" fill="' + (n === 2 ? '#DA6F41' : c.col) + '" r="0"/>'; }
-    });
-    svg += '</svg>';
-    var html = '';
-    // what rides inside each layer: the giant word (a different colour per layer), the bartender, small labels
-    var big = [['WORKS', '#E9E7DB'], ["TONIGHT'S<br>MENU", '#272523']];
-    var lab = [['SHAKEN, NOT STIRRED', 'POUR 01 / 02'], ["TONIGHT'S POUR", 'SERVED COLD · 5 SIGNATURES']];
-    d.forEach(function (c, n) {
-      html += '<div class="arc arc' + n + '" style="background:' + c.col + '"><div class="arc-grain"></div>';
-      if (c.stars) {
-        html += '<svg class="arc-stars" width="' + W + '" height="' + Hh + '">';
-        for (var k = 0; k < 18; k++) {
-          var sz = 7 + Math.random() * 12;
-          html += '<path d="' + STAR + '" fill="#F3E7DA" style="animation-delay:' + (-Math.random() * 2).toFixed(2) + 's" transform="translate(' + (Math.random() * W).toFixed(0) + ' ' + (Math.random() * Hh).toFixed(0) + ') scale(' + sz.toFixed(1) + ')"/>';
-        }
-        html += '</svg>';
-      }
-      html += '<div class="arc-word aw' + n + '" style="color:' + big[n][1] + '">' + big[n][0] + '</div>';
-      if (n === 0) html += '<div class="arc-sil"><div class="j j-upper_b"><div class="pt pt-upper_b"></div><div class="j j-fore_b"><div class="pt pt-fore_b"></div></div></div><div class="pt pt-body"></div><div class="j j-upper_f"><div class="pt pt-upper_f"></div><div class="j j-fore_f"><div class="pt pt-fore_f"></div><div class="j j-shaker"><div class="pt pt-shaker"></div></div></div></div><svg class="sil-waves" viewBox="-50 -50 100 100"><circle r="0"/><circle r="0"/><circle r="0"/></svg></div>';
-      html += '<div class="arc-lab al-a" style="color:#E9E7DB">' + lab[n][0] + '</div>';
-      html += '<div class="arc-lab al-b" style="color:#E9E7DB">' + lab[n][1] + '</div>';
-      html += '</div>';
-    });
-    el.innerHTML = html + svg;
-    document.body.appendChild(el);
-    P.arcLayer = el; P.arcD = d;
+    var cv = document.createElement('canvas');
+    cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr);
+    cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
+    el.appendChild(cv); document.body.appendChild(el);
+    var ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+    P.arcLayer = el; P.arcD = d; P.arcCtx = ctx; P.arcW = W; P.arcH = Hh; P.arcStars = stars;
+    P.arcGrain = ctx.createPattern(GRAIN, 'repeat');
   }
-  function disc(c, r, t) {
-    var pts = [], N = 96, amp = Math.min(R * 0.55, r * 0.02);
-    for (var k = 0; k < N; k++) {
+  function wavyCircle(ctx, c, r, t) {
+    var N = 160, amp = Math.min(R * 0.55, r * 0.02);
+    ctx.beginPath();
+    for (var k = 0; k <= N; k++) {
       var a = k / N * Math.PI * 2, rr = r + amp * (Math.sin(a * 14 + t * 0.006 + c.ph) + 0.6 * Math.sin(a * 23 - t * 0.009));
-      pts.push((c.x + rr * Math.cos(a)).toFixed(1) + 'px ' + (c.y + rr * Math.sin(a)).toFixed(1) + 'px');
+      var x = c.x + rr * Math.cos(a), y = c.y + rr * Math.sin(a);
+      if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y);
     }
-    return 'polygon(' + pts.join(',') + ')';
+    ctx.closePath();
   }
-  // the bartender shakes the shaker; every shake sends out a thin ring
-  function shakeSil(L, ts) {
-    var sil = L.querySelector('.arc-sil'); if (!sil) return;
-    // the figure stays still; the shaker gives two easy shakes, and each one sends out a thin ring
-    var cyc = 560, n = Math.floor(ts / cyc), u = (ts % cyc) / cyc;
-    var sw = n < 2 ? Math.sin(u * Math.PI * 2) : 0;
-    // shoulders lift, elbows follow, the shaker tips in the hands
-    var q = function (c, deg) { var e = sil.querySelector('.j-' + c); if (e) e.style.transform = 'rotate(' + deg.toFixed(2) + 'deg)'; };
-    q('upper_f', -8.23 * sw); q('fore_f', 7.07 * sw); q('shaker', 3 * sw);
-    q('upper_b', -5.48 * sw); q('fore_b', 4.14 * sw);
-    sil.querySelectorAll('.sil-waves circle').forEach(function (ci, q) {
+  function label(ctx, txt, x, y, align, col) {
+    ctx.font = '600 13px "Barlow Condensed", sans-serif';
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '2.9px';
+    ctx.fillStyle = col; ctx.globalAlpha = 0.85; ctx.textAlign = align; ctx.textBaseline = 'middle';
+    ctx.fillText(txt, x, y); ctx.globalAlpha = 1;
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  }
+  function star(ctx, x, y, s) {
+    ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x + s * .18, y - s * .18); ctx.lineTo(x + s, y); ctx.lineTo(x + s * .18, y + s * .18);
+    ctx.lineTo(x, y + s); ctx.lineTo(x - s * .18, y + s * .18); ctx.lineTo(x - s, y); ctx.lineTo(x - s * .18, y - s * .18); ctx.closePath(); ctx.fill();
+  }
+  // the bartender: shoulders lift and elbows bend so both hands (and the shaker) go straight up and down
+  function drawRig(ctx, W, Hh, ts) {
+    var fw = W * 0.58, fh = fw / RIG.aspect, ox = 0, oy = Hh * 1.04 - fh;
+    var cyc = 560, n = Math.floor(ts / cyc), u = (ts % cyc) / cyc, sw = n < 2 && ts > 0 ? Math.sin(u * Math.PI * 2) : 0;
+    var ang = { upper_f: -8.23 * sw, fore_f: 7.07 * sw, shaker: 3 * sw, upper_b: -5.48 * sw, fore_b: 4.14 * sw };
+    var piv = { upper_f: 'shoulder_f', fore_f: 'elbow_f', shaker: 'grip_f', upper_b: 'shoulder_b', fore_b: 'elbow_b' };
+    var rot = function (name) {
+      var j = RIG.j[piv[name]], px = ox + j[0] * fw, py = oy + j[1] * fh;
+      ctx.translate(px, py); ctx.rotate(ang[name] * Math.PI / 180); ctx.translate(-px, -py);
+    };
+    var draw = function (name) { var im = RIG.img[name]; if (im.complete && im.naturalWidth) ctx.drawImage(im, ox, oy, fw, fh); };
+    ctx.save(); rot('upper_b'); draw('upper_b'); rot('fore_b'); draw('fore_b'); ctx.restore();
+    draw('body');
+    ctx.save(); rot('upper_f'); draw('upper_f'); rot('fore_f'); draw('fore_f'); rot('shaker'); draw('shaker'); ctx.restore();
+    // a thin ring leaves the shaker on each shake
+    var gx = ox + (RIG.j.grip_f[0] + 0.03) * fw, gy = oy + (RIG.j.grip_f[1] - 0.05) * fh;
+    ctx.strokeStyle = '#E9E7DB'; ctx.lineWidth = Math.max(1, fw * 0.003);
+    for (var q = 0; q < 2; q++) {
       var ph = (ts - q * cyc) / 900;
-      if (ph < 0 || ph > 1 || q > 1) { ci.setAttribute('opacity', 0); return; }
-      ci.setAttribute('r', (8 + ph * 44).toFixed(1)); ci.setAttribute('opacity', (0.9 * (1 - ph)).toFixed(2));
-    });
+      if (ph < 0 || ph > 1) continue;
+      ctx.globalAlpha = 0.9 * (1 - ph); ctx.beginPath(); ctx.arc(gx, gy, fw * 0.006 * (8 + ph * 44), 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  function paintLayer(ctx, P, n, t, c) {
+    var W = P.arcW, Hh = P.arcH;
+    ctx.fillStyle = c.col; ctx.fillRect(0, 0, W, Hh);
+    ctx.fillStyle = P.arcGrain; ctx.fillRect(0, 0, W, Hh);
+    if (n === 0) {
+      var fs = W * 0.27, dx = 10 - 20 * clamp01((t - c.t0) / 1100);
+      ctx.font = fs.toFixed(1) + 'px Anton, sans-serif'; ctx.fillStyle = '#E9E7DB'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('WORKS', W / 2 + dx * W / 100, Hh / 2);
+      drawRig(ctx, W, Hh, t - c.t0);
+      label(ctx, 'SHAKEN, NOT STIRRED', 32, 34, 'left', '#E9E7DB'); label(ctx, 'POUR 01 / 02', W - 32, Hh - 34, 'right', '#E9E7DB');
+    } else {
+      ctx.fillStyle = '#F3E7DA'; ctx.globalAlpha = 0.78 + 0.17 * Math.sin(t * 0.0026);
+      P.arcStars.forEach(function (s) { star(ctx, s.x, s.y, s.s); });
+      ctx.globalAlpha = 1;
+      var fs2 = W * 0.29, lh = fs2 * 0.82, sl = 6 * (1 - ease(clamp01((t - c.t0) / 700))) * W / 100;
+      ctx.font = fs2.toFixed(1) + 'px Anton, sans-serif'; ctx.fillStyle = '#272523'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillText("TONIGHT'S", W * 1.025 + sl, Hh / 2 - lh / 2);
+      ctx.fillText('MENU', W * 1.025 + sl, Hh / 2 + lh / 2);
+      label(ctx, "TONIGHT'S POUR", 32, 34, 'left', '#E9E7DB'); label(ctx, 'SERVED COLD · 5 SIGNATURES', W - 32, Hh - 34, 'right', '#E9E7DB');
+    }
   }
   function runArcs(P, t, now) {
     if (t < 1100) return;
     if (!P.arcLayer) makeArcs(P);
-    var L = P.arcLayer, done = true;
+    var ctx = P.arcCtx, W = P.arcW, Hh = P.arcH;
+    ctx.clearRect(0, 0, W, Hh);
+    var top = -1;
+    P.arcD.forEach(function (c, n) { if (t >= c.t0 + c.dur) top = n; });
     P.arcD.forEach(function (c, n) {
+      if (n < top) return;                         // fully covered by a later layer
       var k = clamp01((t - c.t0) / c.dur);
-      if (k < 1) done = false;
-      var e = n === 0 ? 1 - Math.pow(1 - k, 2.2) : 1 - Math.pow(1 - k, 3);
-      var r = lerp(c.r0, c.r1, e);
-      var lay = L.querySelector('.arc' + n);
-      if (c.full) { if (n === 0) shakeSil(L, t - c.t0); var wf = L.querySelector('.aw' + n); if (wf) wf.style.transform = n === 1 ? 'translate(' + (6 * (1 - ease(clamp01((t - c.t0) / 700)))).toFixed(2) + 'vw, -50%)' : 'translate(' + (10 - 20 * clamp01((t - c.t0) / 1100)).toFixed(2) + 'vw, -50%)'; return; }
-      if (k >= 1) {                       // it covers the screen: stop redrawing it, and drop the layers under it
-        c.full = true; lay.style.clipPath = 'none'; lay.style.willChange = 'auto';
-        for (var m = 0; m < n; m++) { var u = L.querySelector('.arc' + m); if (u) u.remove(); P.arcD[m].full = true; }
-        L.querySelectorAll('[class^="rg"], [class^="dt"]').forEach(function (e) { e.setAttribute('opacity', 0); });
-        return;
+      if (k <= 0) return;
+      var e = n === 0 ? 1 - Math.pow(1 - k, 2.2) : 1 - Math.pow(1 - k, 3), r = lerp(c.r0, c.r1, e);
+      ctx.save();
+      if (k < 1) { wavyCircle(ctx, c, r, t); ctx.clip(); }
+      paintLayer(ctx, P, n, t, c);
+      ctx.restore();
+      if (k < 1) {                                  // two thin rings and a few drops riding outside the edge
+        var op = 0.85 * (1 - clamp01((k - 0.7) / 0.3));
+        ctx.strokeStyle = c.ring;
+        ctx.globalAlpha = op; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, r + R * 2.4, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = op * 0.6; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(c.x, c.y, r + R * (5.5 + 2 * e), 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 1;
+        var ca = Math.atan2(Hh / 2 - c.y, W / 2 - c.x);
+        ctx.fillStyle = n === 1 ? '#DA6F41' : c.col;
+        c.dots.forEach(function (dp) {
+          var a = ca + (dp.a - Math.PI) * 0.25, rr = r + dp.off;
+          ctx.beginPath(); ctx.arc(c.x + rr * Math.cos(a), c.y + rr * Math.sin(a), dp.sz * (1 - k * 0.6), 0, Math.PI * 2); ctx.fill();
+        });
       }
-      lay.style.clipPath = k <= 0 ? 'circle(0px at 0px 0px)' : 'circle(' + r.toFixed(1) + 'px at ' + c.x.toFixed(1) + 'px ' + c.y.toFixed(1) + 'px)';
-      var ring = L.querySelector('.rg' + n + 'a'), ring2 = L.querySelector('.rg' + n + 'b'), op = k <= 0 ? 0 : 0.85 * (1 - clamp01((k - 0.7) / 0.3));
-      ring.setAttribute('r', (r + R * 2.4).toFixed(1)); ring.setAttribute('opacity', op.toFixed(2));
-      ring2.setAttribute('r', (r + R * (5.5 + 2 * e)).toFixed(1)); ring2.setAttribute('opacity', (op * 0.6).toFixed(2));
-      // a few drops riding just outside the edge, aimed at the screen centre
-      var ca = Math.atan2(innerHeight / 2 - c.y, innerWidth / 2 - c.x);
-      c.dots.forEach(function (dp, q) {
-        var el2 = L.querySelector('.dt' + n + '_' + q), a = ca + (dp.a - Math.PI) * 0.25, rr = r + dp.off;
-        el2.setAttribute('cx', (c.x + rr * Math.cos(a)).toFixed(1)); el2.setAttribute('cy', (c.y + rr * Math.sin(a)).toFixed(1));
-        el2.setAttribute('r', (k <= 0 ? 0 : dp.sz * (1 - k * 0.6)).toFixed(1));
-      });
-      // the giant word drifts across while its layer is on screen
-      var w = L.querySelector('.aw' + n);
-      if (w) w.style.transform = n === 1 ? 'translate(' + (6 * (1 - ease(clamp01((t - c.t0) / 700)))).toFixed(2) + 'vw, -50%)' : 'translate(' + (10 - 20 * clamp01((t - c.t0) / 1100)).toFixed(2) + 'vw, -50%)';
-      if (n === 0) shakeSil(L, t - c.t0);
     });
     // fully covered: move the page to the menu underneath, hold a breath, then let the drink clear
     if (t > 2200 && !P.handed) {
@@ -390,8 +419,8 @@
       setPool({ dur: 0, top: 0 }); scrollTo(0, P.poolTop);
     }
     if (t > 2360) {
-      if (!P.shown) { P.shown = true; showContent(true); L.style.willChange = 'opacity'; }
-      L.style.opacity = (1 - clamp01((t - 2360) / 340)).toFixed(3);
+      if (!P.shown) { P.shown = true; showContent(true); }
+      P.arcLayer.style.opacity = (1 - clamp01((t - 2360) / 340)).toFixed(3);
     }
   }
 
@@ -554,13 +583,6 @@
         });
       });
     } catch (e) {}
-    // also paint the silhouette once, invisibly, so the browser has its masks ready
-    var warm = document.createElement('div');
-    warm.setAttribute('aria-hidden', 'true');
-    warm.style.cssText = 'position:fixed;left:0;bottom:0;width:120px;height:100px;opacity:.01;pointer-events:none;z-index:-1';
-    warm.innerHTML = '<div class="arc-sil" style="width:120px"><div class="j j-upper_b"><div class="pt pt-upper_b"></div><div class="j j-fore_b"><div class="pt pt-fore_b"></div></div></div><div class="pt pt-body"></div><div class="j j-upper_f"><div class="pt pt-upper_f"></div><div class="j j-fore_f"><div class="pt pt-fore_f"></div><div class="j j-shaker"><div class="pt pt-shaker"></div></div></div></div><svg class="sil-waves" viewBox="-50 -50 100 100"><circle r="0"/><circle r="0"/><circle r="0"/></svg></div><div class="arc-grain"></div>';
-    document.body.appendChild(warm);
-    setTimeout(function () { warm.remove(); }, 4000);
   })();
 
   // ---------- Initial state ----------
