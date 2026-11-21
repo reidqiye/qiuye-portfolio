@@ -317,7 +317,7 @@
         html += '</svg>';
       }
       html += '<div class="arc-word aw' + n + '" style="color:' + big[n][1] + '">' + big[n][0] + '</div>';
-      if (n === 0) html += '<div class="arc-sil"><div class="sil-body"></div><div class="sil-arms"><div class="sil-arms-fill"></div><div class="sil-shaker"></div><svg class="sil-waves" viewBox="-50 -50 100 100"><circle r="0"/><circle r="0"/><circle r="0"/></svg></div></div>';
+      if (n === 0) html += '<div class="arc-sil"><div class="j j-upper_b"><div class="pt pt-upper_b"></div><div class="j j-fore_b"><div class="pt pt-fore_b"></div></div></div><div class="pt pt-body"></div><div class="j j-upper_f"><div class="pt pt-upper_f"></div><div class="j j-fore_f"><div class="pt pt-fore_f"></div><div class="j j-shaker"><div class="pt pt-shaker"></div></div></div></div><svg class="sil-waves" viewBox="-50 -50 100 100"><circle r="0"/><circle r="0"/><circle r="0"/></svg></div>';
       html += '<div class="arc-lab al-a" style="color:#E9E7DB">' + lab[n][0] + '</div>';
       html += '<div class="arc-lab al-b" style="color:#E9E7DB">' + lab[n][1] + '</div>';
       html += '</div>';
@@ -338,11 +338,12 @@
   function shakeSil(L, ts) {
     var sil = L.querySelector('.arc-sil'); if (!sil) return;
     // the figure stays still; the shaker gives two easy shakes, and each one sends out a thin ring
-    var sh = sil.querySelector('.sil-shaker'), cyc = 600, n = Math.floor(ts / cyc), u = (ts % cyc) / cyc;
+    var cyc = 600, n = Math.floor(ts / cyc), u = (ts % cyc) / cyc;
     var sw = n < 2 ? Math.sin(u * Math.PI * 2) * (1 - u * 0.3) : 0;
-    // the arms swing from the shoulder, the shaker turns a little further in the hands
-    sil.querySelector('.sil-arms').style.transform = 'rotate(' + (sw * 5).toFixed(2) + 'deg)';
-    sh.style.transform = 'rotate(' + (sw * 9).toFixed(2) + 'deg)';
+    // shoulders lift, elbows follow, the shaker tips in the hands
+    var q = function (c, deg) { var e = sil.querySelector('.j-' + c); if (e) e.style.transform = 'rotate(' + deg.toFixed(2) + 'deg)'; };
+    q('upper_f', -4 * sw); q('fore_f', 7 * sw); q('shaker', -5 * sw);
+    q('upper_b', -3 * sw); q('fore_b', 5 * sw);
     sil.querySelectorAll('.sil-waves circle').forEach(function (ci, q) {
       var ph = (ts - q * cyc) / 900;
       if (ph < 0 || ph > 1 || q > 1) { ci.setAttribute('opacity', 0); return; }
@@ -547,7 +548,7 @@
     try {
       Array.prototype.forEach.call(document.styleSheets, function (sh) {
         Array.prototype.forEach.call(sh.cssRules || [], function (r) {
-          (r.cssText.match(/url\("(data:image\/png;base64,[^"]+)"\)/g) || []).forEach(function (u) {
+          (r.cssText.match(/url\("([^"]+\.png|data:image\/png;base64,[^"]+)"\)/g) || []).forEach(function (u) {
             var img = new Image(); img.src = u.slice(5, -2); keep.push(img); if (img.decode) img.decode().catch(function () {});
           });
         });
@@ -557,7 +558,7 @@
     var warm = document.createElement('div');
     warm.setAttribute('aria-hidden', 'true');
     warm.style.cssText = 'position:fixed;left:0;bottom:0;width:120px;height:100px;opacity:.01;pointer-events:none;z-index:-1';
-    warm.innerHTML = '<div class="arc-sil" style="width:120px"><div class="sil-body"></div><div class="sil-arms"><div class="sil-arms-fill"></div><div class="sil-shaker"></div></div></div><div class="arc-grain"></div>';
+    warm.innerHTML = '<div class="arc-sil" style="width:120px"><div class="j j-upper_b"><div class="pt pt-upper_b"></div><div class="j j-fore_b"><div class="pt pt-fore_b"></div></div></div><div class="pt pt-body"></div><div class="j j-upper_f"><div class="pt pt-upper_f"></div><div class="j j-fore_f"><div class="pt pt-fore_f"></div><div class="j j-shaker"><div class="pt pt-shaker"></div></div></div></div><svg class="sil-waves" viewBox="-50 -50 100 100"><circle r="0"/><circle r="0"/><circle r="0"/></svg></div><div class="arc-grain"></div>';
     document.body.appendChild(warm);
     setTimeout(function () { warm.remove(); }, 4000);
   })();
