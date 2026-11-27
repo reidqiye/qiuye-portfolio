@@ -66,7 +66,7 @@ img { display: block; }
 /* windows + labels */
 .win { position: absolute; background: transparent; border: 0; padding: 0; margin: 0; cursor: pointer; border-radius: 50% 50% 0 0 / 29.6% 29.6% 0 0; }
 .win:focus-visible { outline: 3px solid var(--paper); outline-offset: 4px; }
-.labels { position: absolute; left: 0; right: 0; top: 92.3%; pointer-events: none; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: clamp(24px, 2.4vw, 34px); line-height: 1; letter-spacing: .02em; }
+.labels { position: absolute; left: 0; right: 0; top: 92.3%; pointer-events: none; font-family: 'HuoHei', 'JiuHei', sans-serif; font-weight: 400; font-size: clamp(24px, 2.3vw, 32px); line-height: 1; letter-spacing: .12em; }
 .labels span { position: absolute; transform: translate(-50%, -50%); transition: color 300ms ease; }
 
 /* ---------- Pool (the drink below) ---------- */
