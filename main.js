@@ -4,7 +4,7 @@
 
   // ---------- Content ----------
   var PROJECTS = [
-    { name: 'The Path of Rose', cn: '寻玫瑰', kindCn: '四人团队 · 3D 解谜', kind: 'TEAM OF 4 · 3D PUZZLE', note: 'Sweet with thorns — a journey through The Little Prince.', tools: 'Blender · 3D 游戏引擎 · 关卡设计', img: 'assets/cover-path-of-rose.webp', desc: '以《小王子》为蓝本、以“爱的诠释”为主题的 3D 解谜冒险：在房子与花园间寻找玫瑰，穿过魔法传送门解开谜题。', role: '组长 · 第二关关卡设计 · 动画' },
+    { name: 'The Path of Rose', cn: '寻玫瑰', scene: 'assets/scene_rose.webp', ax: 0.448, kindCn: '四人团队 · 3D 解谜', kind: 'TEAM OF 4 · 3D PUZZLE', note: 'Sweet with thorns — a journey through The Little Prince.', tools: 'Blender · 3D 游戏引擎 · 关卡设计', img: 'assets/cover-path-of-rose.webp', desc: '以《小王子》为蓝本、以“爱的诠释”为主题的 3D 解谜冒险：在房子与花园间寻找玫瑰，穿过魔法传送门解开谜题。', role: '组长 · 第二关关卡设计 · 动画' },
     { name: 'The Second Chance', cn: '没有下次', kindCn: '个人作品 · 叙事解谜', kind: 'SOLO · NARRATIVE GAME', note: 'Bitter, served neat — who gets to grant a second chance?', tools: 'RPG Maker · Blender · Unreal · Ai · Ps', img: 'assets/cover-second-chance.webp', desc: '一款关于宽恕的解谜叙事游戏：罪人可以重新开始，可受害者呢？核心理念是，第二次机会应该由受害者决定。', role: '独立完成：策划、关卡、美术、开发' },
     { name: 'Dusk Game', cn: '黄昏游戏', kindCn: '游戏设计 · 2D', kind: 'GAME DESIGN · 2D', note: 'Smoky, best at dusk — a game of shadows and hide-and-seek.', tools: 'Procreate · Ps · Ae · Unreal', img: 'assets/cover-dusk-game.webp', desc: '从“黄昏不要玩捉迷藏”的民间说法出发，玩家化身影子在废弃工厂里寻找回家的路，核心概念是孤立与联结。', role: '游戏设计 · 故事板 · 序列帧美术' },
     { name: 'Oops! Wrong Choice', cn: '哎呀，选错了？', kindCn: '双人合作 · 互动装置', kind: 'DUO · INSTALLATION', note: 'Fizzy and unpredictable — every jump leaves a mark.', tools: 'Blender · Python · Arduino · Unreal', img: 'assets/cover-oops.webp', desc: '一件用身体操控的互动游戏装置：你做的每个选择都会在人生上留下印记，映照出你的价值观与身份。', role: '游戏设计 · 场景搭建 · 玩法蓝图 · Arduino 跳跃代码' },
@@ -632,15 +632,14 @@
     }
     var sec = $('works'), pin = $('wPin'), track = $('wTrack'), pips = $('wPips'), cv = $('wBg'), ctx = cv.getContext('2d');
     var N = PROJECTS.length;
+    // each work = its low-poly scene (with Qiuye's own lettering baked in); placeholder until the scene exists
     track.innerHTML = PROJECTS.map(function (p, i) {
       var d = CARD[i];
-      return '<div class="wc" data-i="' + i + '" style="--c:' + d.c + ';--dd:' + (i * 90) + 'ms"><div class="wc-in"><div class="wc-fr"><div class="wc-art">' +
-        '<div class="bt back">' + d.short + '</div><div class="mk a"></div><div class="mk b"></div>' + glass(d.glass, d.c) +
-        '<div class="bt front">' + p.name.replace(/^The /, '') + '</div><div class="bt vert">QIUYE BAR · POUR 0' + (i + 1) + ' · ' + d.yr + '</div>' +
-        '<div class="ph">手绘物件堆 · 占位</div></div>' +
-        '<div class="badges"><div class="bd">' + IC[d.ic].replace('<svg', '<svg width="46%" height="46%"') + '<small>' + d.tag + '</small></div><div class="bd">0' + (i + 1) + '<small>POUR</small></div></div>' +
-        '<div class="wc-bar"><h3>' + p.cn + '</h3><p><span class="en">' + p.name + '</span>' + p.kindCn + ' · ' + d.yr + '</p></div>' +
-        '<div class="wc-th"><img src="' + p.img + '" alt="' + p.cn + '"></div></div></div></div>';
+      var body = p.scene
+        ? '<img class="ws-img" src="' + p.scene + '" alt="' + p.cn + '" draggable="false">'
+        : '<div class="ws-ph"><div class="ws-disc"></div><b>' + p.cn + '</b><span>场景制作中</span></div>';
+      return '<div class="wc ws' + (p.scene ? '' : ' noscene') + '" data-i="' + i + '" style="--ax:' + (p.ax || 0.5) + ';--dd:' + (i * 90) + 'ms"><div class="wc-in">' + body +
+        '<div class="ws-meta">No.0' + (i + 1) + ' · ' + p.kindCn + ' · ' + d.yr + '</div></div></div>';
     }).join('');
     pips.innerHTML = PROJECTS.map(function () { return '<i></i>'; }).join('');
     var cards = track.children;
@@ -652,12 +651,14 @@
     function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
     function layout() {
       if (pool.classList.contains('is-works') === false) return;
-      var p = prog(), cw = cards[0].offsetWidth, gap = cw * 1.08;
+      var p = prog(), cw = cards[0].offsetWidth, gap = Math.max(innerWidth * 0.36, cw * 0.95);
       for (var k = 0; k < N; k++) {
         var o = k - p, a = Math.min(1, Math.abs(o));
-        cards[k].style.transform = 'translateX(' + (o * gap * (1 - 0.12 * a)).toFixed(1) + 'px) scale(' + (1 - 0.24 * a).toFixed(3) + ') rotate(' + (o * 3.5).toFixed(2) + 'deg)';
+        cards[k].style.transform = 'translateX(' + (o * gap).toFixed(1) + 'px) scale(' + (1 - 0.42 * a).toFixed(3) + ')';
         cards[k].style.zIndex = 10 - Math.round(Math.abs(o) * 2);
-        cards[k].style.filter = 'brightness(' + (1 - 0.35 * a).toFixed(2) + ')';
+        cards[k].style.opacity = (1 - 0.5 * a).toFixed(2);
+        cards[k].style.filter = 'brightness(' + (1 - 0.3 * a).toFixed(2) + ') saturate(' + (1 - 0.35 * a).toFixed(2) + ')';
+        cards[k].classList.toggle('on', Math.abs(o) < 0.5);
       }
       var n = Math.round(p);
       if (n !== cur) { startWave(n > cur ? 1 : -1, n); cur = n; }
