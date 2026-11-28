@@ -271,5 +271,5 @@ footer { display: flex; justify-content: space-between; align-items: center; gap
 /* neighbours without a scene yet stay hidden, so only real scenes peek in from the sides */
 .wc.ws.noscene:not(.on) { visibility: hidden; }
 
-/* 寒蝉活黑体的「关」字形偏扁，单独拉高一点、收窄一点，和「于我」看起来一样高 */
-.labels .squash-fix { display: inline-block; font-style: normal; transform: scale(.92, 1.1); transform-origin: 50% 60%; }
+/* 寒蝉活黑体的「关」字形偏窄，单独加宽一点，和「于我」看起来一样宽 */
+.labels .squash-fix { display: inline-block; font-style: normal; transform: scaleX(1.14); transform-origin: 50% 50%; margin: 0 .04em; }
